@@ -1,4 +1,5 @@
 ###
+library(Matrix)
 library(tidyverse)
 library(Seurat)
 library(SeuratDisk)
@@ -14,10 +15,10 @@ library(TFBSTools)
 ## library(JASPAR2022, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages/") 
 ## library(TFBSTools, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages/")
 library(EnsDb.Hsapiens.v86)
-library(BSgenome.Hsapiens.UCSC.hg19)
+##library(BSgenome.Hsapiens.UCSC.hg19)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(patchwork)
-library(BSgenome.Hsapiens.1000genomes.hs37d5, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages/")
+## library(BSgenome.Hsapiens.1000genomes.hs37d5, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages/")
 library(ChIPseeker, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages/")
 ###
 library(ggplot2)
@@ -89,10 +90,16 @@ opfn <- "./1_motif.outs/1_scATAC.motif.rds"
 write_rds(atac, opfn)
 
 
+##
+## fn <- "../sc_multiome_data/3_motif/1_motif.outs/1_scATAC.motif.rds"
+## atac <- read_rds(fn)
+## motif <- Motifs(atac)
 
 
 
 
+
+### End,JW 
 
 
 ########################################

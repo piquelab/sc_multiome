@@ -11,7 +11,7 @@ library(openxlsx)
 
 rm(list=ls())
  
-outdir <- "./3_summary.outs/"
+outdir <- "./3_summary.outs/no_shrinkage/"
 if (!file.exists(outdir)) dir.create(outdir, showWarnings=F, recursive=T)
 
 ###
@@ -53,14 +53,15 @@ est2 <- est2%>%mutate(MCls=paste(cvt[,1], cvt[,2], sep="_"),
 ###
 col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4", "vitD"="seagreen4",
           "vitE"="salmon3", "zinc"="maroon3", "peaking"="#7570b3")
-## est3 <- est2%>%mutate(bhat=ifelse(b_lower<(-17)|b_upper>12, NA, bhat))
+est3 <- est2%>%mutate(bhat=ifelse(b_lower<(-17)|b_upper>12, NA, bhat))
     
-p2 <- ggplot(est2, aes(x=bhat, y=category2, color=factor(treats)))+
-    geom_errorbarh(aes(xmax=b_upper, xmin=b_lower), size=0.5, height=0.2)+
+p2 <- ggplot(est2, aes(x=odds, y=category2, color=factor(treats)))+
+    geom_errorbarh(aes(xmax=CI_upper, xmin=CI_lower), size=0.5, height=0.2)+
     geom_point(shape=19, size=0.5)+
     geom_vline(aes(xintercept=0), size=0.25, linetype="dashed")+
     ##scale_y_discrete(labels=ylab)+
-    scale_x_continuous("log odds ratio", breaks=seq(-4, 4, by=2), limits=c(-4.5,4.5))+
+    scale_x_continuous("log odds ratio", breaks=seq(-16,8, by=4), limits=c(-17,8))+
+   ##breaks=seq(-4, 4, by=2), limits=c(-4.5,4.5))+
     scale_colour_manual(values=col2)+
     ggtitle(ii)+
     theme_bw()+
@@ -122,6 +123,40 @@ df3 <- df3%>%left_join(summ, by="comb")%>%
 opfn <- "./3_summary.outs/0_summ.xlsx"
 write.xlsx(df3, opfn, overwrite=T)
 
+
+#####################
+### check results ###
+#####################
+
+traits <- read.table("traits_ls.txt")$V1
+
+outdir <- "./3_summary.outs/check/"
+if (!file.exists(outdir)) dir.create(outdir, showWarnings=F, recursive=T)
+
+
+for (trait in traits){
+
+###    
+fn <- paste("./torus_output/", trait, ".est", sep="")
+x <- read.table(fn)
+x <- x[2:41,]
+x <- x%>%mutate(category=gsub("\\.1", "", V1))%>%
+    dplyr::select(odds=V2, CI_lower=V3, CI_upper=V4, category)
+
+fn <- paste("./analysis3_each/torus_output/", trait, "_comb.est", sep="")
+x2 <- read.table(fn, header=T)
+names(x2) <- c(paste0("ind_", names(x2)[1:3]), "category")
+
+xcomb <- x%>%inner_join(x2, by="category")
+xcomb <- xcomb%>%mutate(treats=gsub(".*_", "", category))%>%arrange(treats)    
+
+xcomb <- xcomb[,c(4, 1:3, 5:8)] 
+    
+opfn <- paste(outdir, trait, "_check.xlsx", sep="")
+write.xlsx(xcomb, file=opfn, overwrite=T)
+
+cat(trait, "\n")
+}
 
 
 
