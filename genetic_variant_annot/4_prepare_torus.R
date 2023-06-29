@@ -10,9 +10,6 @@ outdir <- "./4_SNPAnnot.outs/"
 if ( !file.exists(outdir)) dir.create(outdir, showWarnings=F, recursive=T)
 
 
-### 2_response_motif, th0 10% across conditions
-### 2.2_response_motif, th0 10% for each conditions
-
 
 ###
 ### read all snps
@@ -98,6 +95,46 @@ anno2 <- cbind(anno, mat)
 ##
 opfn <- gzfile(paste(outdir, "zzz_th0.2_multiConditions_torus.annot.gz", sep=""))
 write.table(anno2, opfn, quote=F, row.names=F, col.names=T)
+
+
+
+##################################################
+### New annotation-peaks and peak bound by TFs ###
+##################################################
+
+### response motif
+fn <- "./Response_motif/2.3_response_motif_th0.2.txt"
+resMotif <- read.table(fn, header=T)%>%pull(motif_ID)%>%unique()
+
+
+### all snps
+fn <- "gtex_v8_snpinfor.txt.gz"
+allsnp <- fread(fn, header=F, data.table=F)
+allsnp <- allsnp%>%mutate(chr_pos=paste(V1, V2, sep="_"))
+
+
+### annotation torus
+fn <- "./4_SNPAnnot.outs/zzz_peaking_torus.annot.gz"
+anno <- fread(fn, header=T, data.table=F)
+snpList <- anno%>%filter(peaking_d==1)%>%pull(SNP)%>%unique() 
+
+###
+fn <- "./annot_jaspar2022/zzz_allmotif.bed.gz"
+x <- fread(fn, header=F, data.table=F)
+x <- x%>%mutate(chr_pos=paste(V1, V2, sep="_"))
+x2 <- x%>%filter(V5%in%resMotif)
+
+chr_pos2 <- unique(x2$chr_pos)
+snpmotif <- allsnp%>%filter(chr_pos%in%chr_pos2)%>%pull(V3)%>%unique()
+
+### motif binding snp in peaks
+snp2  <- intersect(snpList, snpmotif)
+
+anno2 <- anno%>%mutate(peaking_d=ifelse(SNP%in%snp2, 2, peaking_d))
+
+opfn <- gzfile(paste(outdir, "zzz_th0.2_union_torus.annot.gz", sep=""))
+write.table(anno2, opfn, quote=F, row.names=F, col.names=T)
+
 
 
 

@@ -148,7 +148,9 @@ x2 <- read.table(fn, header=T)
 names(x2) <- c(paste0("ind_", names(x2)[1:3]), "category")
 
 xcomb <- x%>%inner_join(x2, by="category")
-xcomb <- xcomb%>%mutate(treats=gsub(".*_", "", category))%>%arrange(treats)    
+xcomb <- xcomb%>%
+    mutate(treats=gsub(".*_", "", category),
+           treat2=ifelse(grepl("peaking", treats), "zzz_peaking", treats))%>%arrange(treat2)    
 
 xcomb <- xcomb[,c(4, 1:3, 5:8)] 
     

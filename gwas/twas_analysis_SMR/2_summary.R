@@ -151,9 +151,16 @@ annoDF <- map_dfr(dapdir, function(ii){
     fdr <- qvalue(res$pval_gwas)
     ##pi0 <- propTrueNull(pval)   
     ngene <- nrow(res)
+
+    ## FDR
+    ## pi0 <- round(fdr$pi0, digits=3) ## from FDR
+    ## eq2 <- as.expression(bquote(~pi==.(pi0)))
+
+    ## lambda
+    pi0 <- (2*sum(pval<=0.5))/length(pval)
+    pi0 <- round(pi0, digits=3)
+    eq2 <- as.expression(bquote(~pi<=.(pi0)))
     
-    pi0 <- round(fdr$pi0, digits=3)
-    eq2 <- as.expression(bquote(~pi==.(pi0)))
 
     cat(ii, pi0, "\n")
     ##
@@ -167,7 +174,7 @@ annoDF <- annoDF%>%mutate(xpos=0.75, ypos=ypos_i, yline2=yline/40)
 p2 <- ggplot(plotDF)+
    geom_histogram(aes(x=pval_gwas, color=factor(dap)), fill=NA, bins=40)+
    geom_text(data=annoDF, aes(x=xpos, y=ypos, label=eq), size=5, parse=T)+
-   geom_hline(data=annoDF, aes(yintercept=yline2, color=factor(dap)), linetype="dashed")+ 
+   ##geom_hline(data=annoDF, aes(yintercept=yline2, color=factor(dap)), linetype="dashed")+ 
    xlab("P value of TWAS")+
    scale_y_continuous("Number of genes")+
    facet_wrap(~dap, ncol=3, scales="fixed")+
@@ -182,7 +189,7 @@ p2 <- ggplot(plotDF)+
          strip.text=element_text(size=12))
      
  
-figfn <- paste("./2_summary_twas/Figure1_",  trait, "_pval_hist.png", sep="")
+figfn <- paste("./2_summary_twas/Figure1.2_",  trait, "_pval_hist_lambda.png", sep="")
 png(figfn, width=850, height=350, res=120)
 print(p2)
 dev.off()    

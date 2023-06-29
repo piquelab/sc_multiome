@@ -79,6 +79,21 @@ write.table(x2, gfn, row.names=F, col.names=T, quote=F)
 
 
 
+###
+### Union annotation
+
+snpSel <- fread("./gwas_input/snpList.txt", header=F)$V1
+
+fn <- "/nfs/rprdata/julong/sc_multiome/genetic_variant_annot/4_SNPAnnot.outs/zzz_th0.2_union_torus.annot.gz"
+annot <- fread(fn, header=T, data.table=F)
+
+annot2 <- annot%>%filter(SNP%in%snpSel)
+
+gfn <- gzfile("./torus_input/zzz2_union_torus.annot.gz")
+write.table(annot2, gfn, row.names=F, col.names=T, quote=F)
+
+
+
 
 
 

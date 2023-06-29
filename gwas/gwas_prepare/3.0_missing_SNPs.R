@@ -14,6 +14,8 @@ traits <- sort(traits)
 ###
 ###
 snp_WBL <- read.table("WBL_snplist.txt")$V1
+snp_WBL <- snp_WBL[!grepl("chrX", snp_WBL)]
+
 for (ii in traits){
    ##
    outdir2 <- paste0("./gwas_imputefile/", ii, "/")
