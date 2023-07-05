@@ -6,21 +6,22 @@ library(INTACT, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages/")
 
 ###
 ### intersect SNPs
-
-snp_gwas <- unique(read.table("./gwas/snpList.txt")$V1)
-
+snp_gwas <- unique(read.table("./gwas/snpList_uniq.txt")$V1)
 snp_eqtl <- unique(read.table("./eQTL_results/snpList.txt")$V1)
-
-shared <- intersect(snp_gwas, snp_eqtl) ## 8,187,091
+shared <- intersect(snp_gwas, snp_eqtl) ## 9,428,357
 
 
 ###
 outdir <- "./INTACT_output/"
 if ( !file.exists(outdir)) dir.create(outdir, recursive=T)
 
-###
-###
-traits <- sort(read.table("traits_ls.txt")$V1)
+
+
+#######################
+### INTACT analysis ###
+#######################
+
+traits <- sort(read.table("traits_of_interest.txt")$V1)
  
 ## autosome <- as.character(1:22)
 ## annot <- grch38%>%dplyr::filter(chr%in%autosome)%>%dplyr::select(ensgene, symbol)
@@ -35,19 +36,11 @@ fn <- paste("./enloc_output/", ii, ".enloc.gene.out", sep="")
 enloc <- read.table(fn, header=T)
 
 
-fn <- paste("../twas_analysis_SMR/2_summary_twas/eQTL_conditions/", ii, "_twas.txt", sep="")
-twas <- read.table(fn, header=T)
-
 ## add zscore    
-fn <- paste("../twas_analysis_SMR/gwas_data/gwas_impute/", ii, "_gwas.txt.gz", sep="")    
-gwas <- fread(fn, header=F, data.table=F)
-names(gwas) <- c("id_b38", "chr", "pos", "zscore", "pvalue", "id_b38_2")
-zval<- gwas$zscore
-names(zval) <- gwas$id_b38
-
-twas <- twas%>%mutate(zscore=zval[id_b38])    
-    
-twas2 <- twas%>%dplyr::select(Gene=gene, zscore, symbol)
+fn <- paste("../twas_analysis_SMR/1_SMR_output/eQTL_dap_conditions/", ii, "_topPIP_twas.txt.gz", sep="")    
+twas <- fread(fn, header=T, data.table=F)
+twas <- twas%>%mutate(gene=gsub("\\..*", "", gene))    
+twas2 <- twas%>%dplyr::select(Gene=gene, zscore=zscore_gwas)
  
 ## combine enloc and z-score of twas
 DF <- enloc%>%inner_join(twas2, by="Gene")
@@ -81,9 +74,4 @@ cat(ii, nrow(DF2), "\n")
 ## x12 <- intersect(gene1, gene2)
 ## x13 <- intersect(gene1, gene3)
 
-
-###
-###
-fn <- paste("./INTACT_output/", trait, "_intact.txt", sep="")
-x <- read.table(fn, header=T)
 
