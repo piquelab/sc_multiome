@@ -237,8 +237,9 @@ rnz <- rowSums(is.na(mat2))
 mat2 <- mat2[rnz==0,] ### 7117*48
 
 ### correlation data for plot
-corr_mat <- cor(mat2, method="spearman") 
-
+## corr_mat <- cor(mat2, method="spearman") 
+## opfn <- paste(outdir, "1.x_DEG_corr.rds", sep="")
+## write_rds(corr_mat, file=opfn)
 
 ###
 ### setting colors
@@ -326,6 +327,55 @@ ggsave(figfn, plot=comb_plots, device="png", width=320, height=560, units="px", 
 
 
 
+###
+### pair treatments within the same cell types, each box has 8 points
+mat <- read_rds("./2_diff_plots.outs/1.x_DEG_corr.rds")
+x <- str_split(colnames(mat), "_", simplify=T)
+df <- data.frame(rn=colnames(mat), MCls=paste(x[,1], x[,2], sep="_"), treats=x[,3])
+
+treat <- sort(unique(df$treats))
+MCls <- sort(unique(df$MCls))
+ntr <- length(treat)
+comb <- NULL
+for (i in 1:(ntr-1)){
+   ##
+   for (j in (i+1):ntr){
+       ii <- paste(treat[i], treat[j], sep="_")
+       comb <- c(comb, ii)
+   }
+}
+
+       
+DFcorr3 <- map_dfr(comb, function(ii){
+   ##
+   tr1 <- gsub("_.*", "", ii)
+   tr2 <- gsub(".*_", "", ii) 
+   df <- map_dfr(MCls, function(oneMCl){
+      ##
+      comb1 <- paste(oneMCl, tr1, sep="_")
+      comb2 <- paste(oneMCl, tr2, sep="_")
+      df2 <- data.frame(comb=ii, MCls=oneMCl, rr=mat[comb1, comb2])
+      df2
+   })
+   df
+})    
+ 
+p5_3 <- ggplot(DFcorr3, aes(x=comb, y=as.numeric(rr)))+ ##, fill=factor(MCls), group=comb))+
+   ## geom_violin()+
+   geom_boxplot(outlier.shape=NA, lwd=0.25)+
+   stat_summary(fun=median, color="grey", geom="point", shape=23, size=1.8, stroke=0.9)+
+   geom_jitter(width=0.2, size=0.5, aes(color=MCls))+ 
+   scale_color_manual(values=col1)+
+   ylab("Spearman correlation")+ylim(0,0.8)+
+   theme_bw()+
+   theme(legend.position="none",
+         axis.title.x=element_blank(),
+         axis.title.y=element_text(size=9),
+         axis.text.x=element_text(angle=45, hjust=1, size=8),
+         axis.text.y=element_text(size=9))                         
+  
+figfn <- paste(outdir, "Figure1.6_pairtreats.box.png", sep="")
+ggsave(figfn, plot=p5_3, device="png", width=460, height=380, units="px", dpi=120)
 
 
 
@@ -470,65 +520,65 @@ ggsave(figfn, plot=p3, device="png", width=250, height=420, units="px", dpi=120)
 ### Heatmap of correlation using spearman with LFC ### 
 ######################################################
 
-fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
-res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
-sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
-res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
+## fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
+## res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
+## sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+## res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
 
 
-###
-mat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=estimate)
-mat2 <- as.matrix(mat[,-1])
-rnz <- rowSums(is.na(mat2))
-mat2 <- mat2[rnz==0,] ### 17,445*48
+## ###
+## mat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=estimate)
+## mat2 <- as.matrix(mat[,-1])
+## rnz <- rowSums(is.na(mat2))
+## mat2 <- mat2[rnz==0,] ### 17,445*48
 
-### correlation data for plot
-corr_mat <- cor(mat2, method="spearman") 
-mycol <- colorRamp2(seq(-1, 1, length.out=100), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(100))
-
-
-###
-### annotation columns
-col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
-  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
-   "6_Monocyte"="#984ea3", "7_dnT"="black")
-col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
-       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
-
-x <- str_split(colnames(corr_mat), "_", simplify=T)
-df_col <- data.frame(celltype=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
-col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1, contrast=col2),
-    show_legend=F,                        
-    annotation_name_gp=gpar(fontsize=10),
-    annotation_legend_param=list(
-  celltype=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="celltype",
-                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")),
-  contrast=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="contrast",
-                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")))) 
+## ### correlation data for plot
+## corr_mat <- cor(mat2, method="spearman") 
+## mycol <- colorRamp2(seq(-1, 1, length.out=100), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(100))
 
 
-###
-### main heatmap  
-p4 <- Heatmap(corr_mat, col=mycol,
-   cluster_rows=F, cluster_columns=F,
-   show_row_names=F,
-   show_column_names=T, column_names_gp=gpar(fontsize=6),
-   ##column_names_rot=-45,   
-   top_annotation=col_ha,
-   heatmap_legend_param=list(title="rho",
-      title_gp=gpar(fontsize=10),
-      at=seq(-1, 1, by=0.25), 
-      labels_gp=gpar(fontsize=8),
-      grid_width=grid::unit(0.45, "cm"),
-      legend_height=grid::unit(7.8, "cm")), 
-   use_raster=T, raster_device="png")
+## ###
+## ### annotation columns
+## col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+##   "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+##    "6_Monocyte"="#984ea3", "7_dnT"="black")
+## col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+##        "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+
+## x <- str_split(colnames(corr_mat), "_", simplify=T)
+## df_col <- data.frame(celltype=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
+## col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1, contrast=col2),
+##     show_legend=F,                        
+##     annotation_name_gp=gpar(fontsize=10),
+##     annotation_legend_param=list(
+##   celltype=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="celltype",
+##                 grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")),
+##   contrast=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="contrast",
+##                 grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")))) 
+
+
+## ###
+## ### main heatmap  
+## p4 <- Heatmap(corr_mat, col=mycol,
+##    cluster_rows=F, cluster_columns=F,
+##    show_row_names=F,
+##    show_column_names=T, column_names_gp=gpar(fontsize=6),
+##    ##column_names_rot=-45,   
+##    top_annotation=col_ha,
+##    heatmap_legend_param=list(title="rho",
+##       title_gp=gpar(fontsize=10),
+##       at=seq(-1, 1, by=0.25), 
+##       labels_gp=gpar(fontsize=8),
+##       grid_width=grid::unit(0.45, "cm"),
+##       legend_height=grid::unit(7.8, "cm")), 
+##    use_raster=T, raster_device="png")
  
-###
-figfn <- paste(outdir, "Figure2.4_corr_LFC_spearman.heatmap.png", sep="")
-## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
-png(figfn, width=580, height=700,res=120)
-p4 <- draw(p4)
-dev.off()
+## ###
+## figfn <- paste(outdir, "Figure2.4_corr_LFC_spearman.heatmap.png", sep="")
+## ## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
+## png(figfn, width=580, height=700,res=120)
+## p4 <- draw(p4)
+## dev.off()
 
 
 
@@ -536,108 +586,108 @@ dev.off()
 ###################################################################
 #### boxplots show spearman correlation of LFC of union of DARs ###
 ###################################################################
-fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
-res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
-sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
-res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
+## fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
+## res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
+## sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+## res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
 
 
 
-mat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=estimate)
-mat2 <- as.matrix(mat[,-1])
-rnz <- rowSums(is.na(mat2))
-mat2 <- mat2[rnz==0,] ### 17,445*48
+## mat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=estimate)
+## mat2 <- as.matrix(mat[,-1])
+## rnz <- rowSums(is.na(mat2))
+## mat2 <- mat2[rnz==0,] ### 17,445*48
 
-### correlation data for plot
-corr_mat <- cor(mat2, method="spearman") 
-
-
-
-###
-### setting colors
-col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
-  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
-   "6_Monocyte"="#984ea3", "7_dnT"="black")
-col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
-       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+## ### correlation data for plot
+## corr_mat <- cor(mat2, method="spearman") 
 
 
 
-###
-### plot data group by cell types
-rn<- rownames(corr_mat)
-cvt <- str_split(rownames(corr_mat), "_", simplify=T)
-cvt2 <- data.frame(rn=rownames(corr_mat), MCls=paste(cvt[,1], cvt[,2], sep="_"), treats=cvt[,3])
+## ###
+## ### setting colors
+## col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+##   "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+##    "6_Monocyte"="#984ea3", "7_dnT"="black")
+## col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+##        "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
 
-###
-MCls <- unique(cvt2$MCls)
-DFcorr <- map_dfr(MCls, function(ii){
-   ###
-   rn2 <- cvt2%>%filter(MCls==ii)%>%pull(rn) 
-   corr2 <- corr_mat[rn2, rn2]
-   corr2 <- corr2%>%as.data.frame()%>%rownames_to_column(var="comb") 
-   ## 
-   DF2 <- corr2%>%pivot_longer(!comb, names_to="comb2", values_to="rr")
-   DF2$MCls <- ii
-   DF2 
-})
+
+
+## ###
+## ### plot data group by cell types
+## rn<- rownames(corr_mat)
+## cvt <- str_split(rownames(corr_mat), "_", simplify=T)
+## cvt2 <- data.frame(rn=rownames(corr_mat), MCls=paste(cvt[,1], cvt[,2], sep="_"), treats=cvt[,3])
+
+## ###
+## MCls <- unique(cvt2$MCls)
+## DFcorr <- map_dfr(MCls, function(ii){
+##    ###
+##    rn2 <- cvt2%>%filter(MCls==ii)%>%pull(rn) 
+##    corr2 <- corr_mat[rn2, rn2]
+##    corr2 <- corr2%>%as.data.frame()%>%rownames_to_column(var="comb") 
+##    ## 
+##    DF2 <- corr2%>%pivot_longer(!comb, names_to="comb2", values_to="rr")
+##    DF2$MCls <- ii
+##    DF2 
+## })
  
 
-###
-treats <- unique(cvt2$treats)
-DFcorr2 <- map_dfr(treats, function(ii){
-   ###
-   rn2 <- cvt2%>%filter(treats==ii)%>%pull(rn) 
-   corr2 <- corr_mat[rn2, rn2]
-   corr2 <- corr2%>%as.data.frame()%>%rownames_to_column(var="comb") 
-   ## 
-   DF2 <- corr2%>%pivot_longer(!comb, names_to="comb2", values_to="rr")
-   DF2$treats <- ii
-   DF2 
-})
+## ###
+## treats <- unique(cvt2$treats)
+## DFcorr2 <- map_dfr(treats, function(ii){
+##    ###
+##    rn2 <- cvt2%>%filter(treats==ii)%>%pull(rn) 
+##    corr2 <- corr_mat[rn2, rn2]
+##    corr2 <- corr2%>%as.data.frame()%>%rownames_to_column(var="comb") 
+##    ## 
+##    DF2 <- corr2%>%pivot_longer(!comb, names_to="comb2", values_to="rr")
+##    DF2$treats <- ii
+##    DF2 
+## })
 
 
-###
-### boxplot group by cell types
-DFcorr <- DFcorr%>%mutate(rr=round(rr,3))%>%filter(rr<1)
-p5_1 <- ggplot(DFcorr, aes(x=MCls, y=rr, fill=MCls))+
-   ##geom_violin()+ 
-   geom_boxplot(outlier.shape=NA, lwd=0.25)+
-   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.1)+     
-   scale_fill_manual(values=col1)+
-   ylab("Spearman correlation")+ylim(0, 0.8)+   
-   theme_bw()+
-   theme(legend.position="none",
-         axis.title.x=element_blank(),
-         axis.title.y=element_text(size=9),
-         axis.text.x=element_text(angle=45, hjust=1, size=9),
-         axis.text.y=element_text(size=9))                         
+## ###
+## ### boxplot group by cell types
+## DFcorr <- DFcorr%>%mutate(rr=round(rr,3))%>%filter(rr<1)
+## p5_1 <- ggplot(DFcorr, aes(x=MCls, y=rr, fill=MCls))+
+##    ##geom_violin()+ 
+##    geom_boxplot(outlier.shape=NA, lwd=0.25)+
+##    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
+##    geom_jitter(width=0.2, size=0.1)+     
+##    scale_fill_manual(values=col1)+
+##    ylab("Spearman correlation")+ylim(0, 0.8)+   
+##    theme_bw()+
+##    theme(legend.position="none",
+##          axis.title.x=element_blank(),
+##          axis.title.y=element_text(size=9),
+##          axis.text.x=element_text(angle=45, hjust=1, size=9),
+##          axis.text.y=element_text(size=9))                         
 
 
-### boxplots group by treatments
-DFcorr2 <- DFcorr2%>%mutate(rr=round(rr,3))%>%filter(rr<1)
-p5_2 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
-   ##geom_violin()+ 
-   geom_boxplot(outlier.shape=NA, lwd=0.25)+
-   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.1)+ 
-   scale_fill_manual(values=col2)+
-   ylab("Spearman correlation")+ylim(0, 0.8)+
-   theme_bw()+
-   theme(legend.position="none",
-         axis.title.x=element_blank(),
-         axis.title.y=element_text(size=9),
-         axis.text.x=element_text(angle=45, hjust=1, size=9),
-         axis.text.y=element_text(size=9))                         
+## ### boxplots group by treatments
+## DFcorr2 <- DFcorr2%>%mutate(rr=round(rr,3))%>%filter(rr<1)
+## p5_2 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
+##    ##geom_violin()+ 
+##    geom_boxplot(outlier.shape=NA, lwd=0.25)+
+##    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
+##    geom_jitter(width=0.2, size=0.1)+ 
+##    scale_fill_manual(values=col2)+
+##    ylab("Spearman correlation")+ylim(0, 0.8)+
+##    theme_bw()+
+##    theme(legend.position="none",
+##          axis.title.x=element_blank(),
+##          axis.title.y=element_text(size=9),
+##          axis.text.x=element_text(angle=45, hjust=1, size=9),
+##          axis.text.y=element_text(size=9))                         
 
 
-comb_plots <- plot_grid(p5_1, p5_2, nrow=2, align="v", rel_heights=c(1,0.9))
-figfn <- paste(outdir, "Figure2.5_comb.box.png", sep="")
-ggsave(figfn, plot=comb_plots, device="png", width=320, height=560, units="px", dpi=120) ## ggsave 
+## comb_plots <- plot_grid(p5_1, p5_2, nrow=2, align="v", rel_heights=c(1,0.9))
+## figfn <- paste(outdir, "Figure2.5_comb.box.png", sep="")
+## ggsave(figfn, plot=comb_plots, device="png", width=320, height=560, units="px", dpi=120) ## ggsave 
 
 
-
+ 
 
 #################################################
 #### another option to calculate correlation ####
@@ -648,7 +698,7 @@ outdir <- "./2_diff_plots.outs/"
 fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
 res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
 
-sig <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+## sig <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
 
 ###
 ### peaks
@@ -661,52 +711,46 @@ DFpeak <- map_dfr(MCls, function(ii){
    DF
 })    
 
-summ <- DFpeak%>%group_by(MCls)%>%summarize(npeak=n(), .groups="drop")
-write.xlsx(summ, "./2_diff_plots.outs/2_summ.xlsx")
+## summ <- DFpeak%>%group_by(MCls)%>%summarize(npeak=n(), .groups="drop")
+## write.xlsx(summ, "./2_diff_plots.outs/2_summ.xlsx")
 
-    
-####
-### 
+
+###
+### correlation 
 comb <- sort(unique(res$comb))
 ncomb <- length(comb)
 cvt <- str_split(comb, "_", simplify=T)
 DFcomb <- data.frame(rn=comb, MCls=paste(cvt[,1], cvt[,2], sep="_"), treats=cvt[,3])
 
-mat <- matrix(0, ncomb, ncomb)
-for (i in 1:ncomb){
-   ### 
-   comb1 <- DFcomb$rn[i]
-   oneMCl1 <- DFcomb$rn[i]
-   peak1 <- DFpeak%>%filter(MCls==oneMCl1)%>%pull(peak)
+
+corr_mat <- matrix(0, ncomb, ncomb)
+colnames(corr_mat) <- comb
+rownames(corr_mat) <- comb
+MCls <- sort(unique(DFcomb$MCls))
+for (oneMCl in MCls){
    ###
-   cat(comb1, ":\n") 
-   for (j in i:ncomb){
-       ## 
-       comb2 <- DFcomb$rn[j]
-       oneMCl2 <- DFcomb$MCls[j]
-       peak2 <- DFpeak%>%filter(MCls==oneMCl2)%>%pull(peak)
-       peakSel <- union(peak1, peak2)
-       cat(comb2, length(peakSel), ",")
-       ##
-       tmp <- res%>%filter(gene%in%peakSel, comb==comb1)%>%select(gene, x=estimate)%>%drop_na(x)
-       tmp2 <- res%>%filter(gene%in%peakSel, comb==comb2)%>%select(gene, y=estimate)%>%drop_na(y)
-       ##
-       tmp <- tmp%>%inner_join(tmp2, by="gene")
-       rho <- cor(tmp$x, tmp$y, method="spearman")
-       mat[i,j] <- rho
-       mat[j,i] <- rho
-   }    
-}
+   peakSel <- DFpeak%>%filter(MCls==oneMCl)%>%pull(peak)%>%unique()
+   rn2 <- DFcomb%>%filter(MCls==oneMCl)%>%pull(rn)%>%unique()%>%sort()
+
+   res2 <- res%>%filter(comb%in%rn2, gene%in%peakSel)%>%select(comb, gene, LFC=estimate)
+   dfmat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=LFC)
+   rr_mat  <- cor(dfmat[,-1], method="spearman")
+   corr_mat[rn2, rn2] <- rr_mat[rn2, rn2]     
+   cat(oneMCl, "\n")
+}    
      
-    
-colnames(mat) <- comb
-rownames(mat) <- comb
 opfn <- paste(outdir, "2.x_DP_corr.rds", sep="")
-write_rds(mat, file=opfn)
+write_rds(corr_mat, file=opfn)
 
 
 
-corr_mat <- mat
+
+###
+### Heatmap 
+fn <- paste(outdir, "2.x_DP_corr.rds", sep="")
+corr_mat <- read_rds(fn)
+
+
 
 
 ### setting colors
@@ -750,7 +794,7 @@ p2 <- Heatmap(corr_mat, col=mycol,
    use_raster=T, raster_device="png")
 
 ###
-figfn <- paste(outdir, "Figure2.6.1_corr_LFC_spearman.heatmap.png", sep="")
+figfn <- paste(outdir, "Figure2.4_corr_LFC_spearman.heatmap.png", sep="")
 ## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
 png(figfn, width=580, height=700,res=120)
 p2 <- draw(p2)
@@ -800,17 +844,17 @@ DFcorr <- map_dfr(MCls, function(ii){
  
 
 ###
-treats <- unique(cvt2$treats)
-DFcorr2 <- map_dfr(treats, function(ii){
-   ###
-   rn2 <- cvt2%>%filter(treats==ii)%>%pull(rn) 
-   corr2 <- corr_mat[rn2, rn2]
-   corr2 <- corr2%>%as.data.frame()%>%rownames_to_column(var="comb") 
-   ## 
-   DF2 <- corr2%>%pivot_longer(!comb, names_to="comb2", values_to="rr")
-   DF2$treats <- ii
-   DF2 
-})
+## treats <- unique(cvt2$treats)
+## DFcorr2 <- map_dfr(treats, function(ii){
+##    ###
+##    rn2 <- cvt2%>%filter(treats==ii)%>%pull(rn) 
+##    corr2 <- corr_mat[rn2, rn2]
+##    corr2 <- corr2%>%as.data.frame()%>%rownames_to_column(var="comb") 
+##    ## 
+##    DF2 <- corr2%>%pivot_longer(!comb, names_to="comb2", values_to="rr")
+##    DF2$treats <- ii
+##    DF2 
+## })
 
 
  
@@ -824,32 +868,91 @@ p6_1 <- ggplot(DFcorr, aes(x=MCls, y=rr, fill=MCls))+
    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
    geom_jitter(width=0.2, size=0.1)+     
    scale_fill_manual(values=col1)+
-   ylab("Spearman correlation")+ylim(-0.2,0.8)+
+   ylab("Spearman correlation")+ylim(-0.1,0.8)+
    theme_bw()+
    theme(legend.position="none",
          axis.title.x=element_blank(),
          axis.title.y=element_text(size=9),
          axis.text.x=element_text(angle=45, hjust=1, size=9),
          axis.text.y=element_text(size=9))                         
+
+###
+figfn <- paste(outdir, "Figure2.5_comb.box.png", sep="")
+ggsave(figfn, plot=p6_1, device="png", width=350, height=320, units="px", dpi=120) ## ggsave 
+
+
+
+###
+### pair treatments within the same cell types, each box has 8 points
+mat <- read_rds("./2_diff_plots.outs/2.x_DP_corr.rds")
+x <- str_split(colnames(mat), "_", simplify=T)
+df <- data.frame(rn=colnames(mat), MCls=paste(x[,1], x[,2], sep="_"), treats=x[,3])
+
+treat <- sort(unique(df$treats))
+MCls <- sort(unique(df$MCls))
+ntr <- length(treat)
+comb <- NULL
+for (i in 1:(ntr-1)){
+   ##
+   for (j in (i+1):ntr){
+       ii <- paste(treat[i], treat[j], sep="_")
+       comb <- c(comb, ii)
+   }
+}
+
+       
+DFcorr3 <- map_dfr(comb, function(ii){
+   ##
+   tr1 <- gsub("_.*", "", ii)
+   tr2 <- gsub(".*_", "", ii) 
+   df <- map_dfr(MCls, function(oneMCl){
+      ##
+      comb1 <- paste(oneMCl, tr1, sep="_")
+      comb2 <- paste(oneMCl, tr2, sep="_")
+      df2 <- data.frame(comb=ii, MCls=oneMCl, rr=mat[comb1, comb2])
+      df2
+   })
+   df
+})    
+ 
+p6_3 <- ggplot(DFcorr3, aes(x=comb, y=as.numeric(rr)))+ ##, fill=factor(MCls), group=comb))+
+   ## geom_violin()+
+   geom_boxplot(outlier.shape=NA, lwd=0.25)+
+   stat_summary(fun=median, color="grey", geom="point", shape=23, size=1.8, stroke=0.9)+
+   geom_jitter(width=0.2, size=0.5, aes(color=MCls))+ 
+   scale_color_manual(values=col1)+
+   ylab("Spearman correlation")+ylim(-0.1,0.8)+
+   theme_bw()+
+   theme(legend.position="none",
+         axis.title.x=element_blank(),
+         axis.title.y=element_text(size=9),
+         axis.text.x=element_text(angle=45, hjust=1, size=7.5),
+         axis.text.y=element_text(size=9))                         
+  
+figfn <- paste(outdir, "Figure2.6_pairtreats.box.png", sep="")
+ggsave(figfn, plot=p6_3, device="png", width=460, height=380, units="px", dpi=120)
+
+
+
 
 
 ### boxplots group by treatments
-DFcorr2 <- DFcorr2%>%mutate(rr=round(rr,3))%>%filter(rr<1)
-p6_2 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
-   ##geom_violin()+ 
-   geom_boxplot(outlier.shape=NA, lwd=0.25)+
-   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.1)+ 
-   scale_fill_manual(values=col2)+
-   ylab("Spearman correlation")+ylim(-0.2,0.8)+
-   theme_bw()+
-   theme(legend.position="none",
-         axis.title.x=element_blank(),
-         axis.title.y=element_text(size=9),
-         axis.text.x=element_text(angle=45, hjust=1, size=9),
-         axis.text.y=element_text(size=9))                         
+## DFcorr2 <- DFcorr2%>%mutate(rr=round(rr,3))%>%filter(rr<1)
+## p6_2 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
+##    ##geom_violin()+ 
+##    geom_boxplot(outlier.shape=NA, lwd=0.25)+
+##    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
+##    geom_jitter(width=0.2, size=0.1)+ 
+##    scale_fill_manual(values=col2)+
+##    ylab("Spearman correlation")+ylim(-0.2,0.8)+
+##    theme_bw()+
+##    theme(legend.position="none",
+##          axis.title.x=element_blank(),
+##          axis.title.y=element_text(size=9),
+##          axis.text.x=element_text(angle=45, hjust=1, size=9),
+##          axis.text.y=element_text(size=9))                         
 
 
-comb_plots <- plot_grid(p6_1, p6_2, nrow=2, align="v", rel_heights=c(1,0.9))
-figfn <- paste(outdir, "Figure2.6.2_comb.box.png", sep="")
-ggsave(figfn, plot=comb_plots, device="png", width=320, height=560, units="px", dpi=120) ## ggsave 
+## comb_plots <- plot_grid(p6_1, p6_2, nrow=2, align="v", rel_heights=c(1,0.9))
+## figfn <- paste(outdir, "Figure2.6.2_comb.box.png", sep="")
+## ggsave(figfn, plot=comb_plots, device="png", width=320, height=560, units="px", dpi=120) ## ggsave 
