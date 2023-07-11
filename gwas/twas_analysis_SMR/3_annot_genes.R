@@ -25,9 +25,7 @@ library(openxlsx)
 library(cowplot)
 library(ggrepel)
 ##
-
-
-##options(scipen=200)
+## options(scipen=18)
 
 rm(list=ls())
 
@@ -39,10 +37,12 @@ rm(list=ls())
 fn <- "../../gtex_v8/torus/torus_input/zzz_torus.annot.gz"
 annot <- fread(fn, header=T, data.table=F)
 
-
-traits <- read.table("traits_ls.txt")$V1
+ 
+traits <- read.table("traits_of_interest.txt")$V1
+traits <- sort(traits)
 
 for (trait in traits){
+
 
 ###    
 outdir <- paste("./3_examples_output/", trait, "/", sep="")
@@ -50,19 +50,19 @@ if ( !file.exists(outdir)) dir.create(outdir, recursive=T)
 
     
 ### twas results
-fn <- paste("./2_summary_twas/eQTL_conditions/", trait, "_twas.txt", sep="")
-res <- read.table(fn, header=T)
-res2 <- res%>%dplyr::select(Gene=gene, symbol, id_b38, pval_eqtl, PIP_eqtl=PIP, pval_gwas, FDR_twas=FDR)%>%
+fn <- paste("./2_summary_twas/eQTL_dap_conditions/", trait, "_twas.txt", sep="")
+res <- read.table(fn, header=T, fill=T)
+res2 <- res%>%dplyr::select(Gene=gene2, symbol, id_b38, id_b38_2, 
+   pval_eqtl, PIP_conditions, PIP_base,  pval_gwas, FDR_twas=FDR)%>%
    arrange(FDR_twas) ### rank by FDR_twas
     
 ### colocalization FDR_intact<0.1   
 fn <- paste("../enloc_analysis/INTACT_output/", trait, "_intact.txt", sep="")
 intact <- read.table(fn, header=T)
-intact2 <- intact%>%dplyr::filter(FDR<0.1)%>%
-   dplyr::select(Gene, zscore_twas=zscore, FDR_intact=FDR, GRCP, GLCP, PCG)
+intact2 <- intact%>%dplyr::select(Gene, PCG, GLCP, FDR_intact=FDR)
 
 ### combine    
-res_comb <- res2%>%inner_join(intact2, by="Gene")    
+res_comb <- res2%>%full_join(intact2, by="Gene")    
 
 
 ### annotation     
@@ -71,21 +71,55 @@ x <- annot2[,-1]
 rnz <- rowSums(x)
 DF <- data.frame(id_b38=annot2$SNP, nannot=rnz)
 
-    
-### output all the genes FDR_intact<0.1
+
 res_comb <- res_comb%>%left_join(DF, by="id_b38")
-opfn <- paste(outdir, trait, "_intact_sig.xlsx", sep="")
-write.xlsx(res_comb, opfn)
+opfn <- paste(outdir, trait, "_comb_infor.txt", sep="")
+write.table(res_comb, opfn, quote=F, row.names=F, col.names=T)
 
 
 ### output the genes with FDR_intact<0.1 and also annotated
-res_comb2 <- res_comb%>%filter(nannot>1)
-opfn2 <- paste(outdir, trait, "_intact_sig_annoted.xlsx", sep="")
-write.xlsx(res_comb2, opfn2)
+## res_comb2 <- res_comb%>%filter(nannot>1)
+## opfn2 <- paste(outdir, trait, "_intact_sig_annoted.xlsx", sep="")
+## write.xlsx(res_comb2, opfn2)
 
-cat(trait, "total:", nrow(res_comb), "annotated:", nrow(res_comb2), "\n")
+cat(trait, "total:", nrow(res_comb), "annotated:", sum(rnz>0), "\n")
     
 }
+
+
+
+######################
+### summary traits ###
+######################
+
+###
+### summary traits
+summ <- map_dfr(traits, function(trait){
+   ##
+   fn <- paste("./3_examples_output/", trait, "/", trait, "_comb_infor.txt", sep="")
+   res <- read.table(fn, header=T, fill=T)
+
+   ### 
+   gene1 <- res%>%dplyr::filter(FDR_twas<0.1)%>%pull(Gene)%>%unique()
+   gene2 <- res%>%dplyr::filter(FDR_intact<0.1)%>%pull(Gene)%>%unique() 
+   gene3 <- res%>%dplyr::filter(FDR_intact<0.1, nannot>1)%>%pull(Gene)%>%unique()
+
+   df <- data.frame(traits=trait, ntwas=length(gene1), nINTACT=length(gene2), n_annoted=length(gene3))
+   df
+})
+
+## x <- read.xlsx("../gwas_prepare/traits_of_interest.xlsx")
+## names(x)[2] <- "n_ptwas"
+## summ2 <- summ%>%left_join(x, by="traits")
+
+opfn <- "./3_examples_output/1_intact_summ.xlsx"
+write.xlsx(summ, file=opfn, overwrite=T)
+
+
+
+
+
+
 
 
 
@@ -177,23 +211,7 @@ dev.off()
 
 
 
-###
-### summary traits
-summ <- map_dfr(traits, function(trait){
-   ##
-   fn <- paste("./2_summary_twas/eQTL_conditions/", trait, "_twas.txt", sep="")
-   gene1 <- read.table(fn, header=T)%>%dplyr::filter(FDR<0.1)%>%pull(gene)%>%unique()
 
-   ##
-   fn <- paste("./3_examples_output/", trait, "/", trait, "_intact_sig.xlsx", sep="") 
-   x <- read.xlsx(fn)
-   gene2 <- unique(x$Gene)
-
-   gene3 <- x%>%dplyr::filter(nannot>1)%>%pull(Gene)%>%unique()
-
-   df <- data.frame(traits=trait, ntwas=length(gene1), nPCG=length(gene2), n_annoted=length(gene3))
-   df
-})
 
 
 

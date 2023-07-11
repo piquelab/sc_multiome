@@ -10,7 +10,7 @@ args=commandArgs(trailingOnly=T)
 if (length(args)>0){
    trait <- args[1]
  }else{
-  trait <- "CARDloGRAM_C4D_CAD"
+   trait <- "CARDIoGRAM_C4D_CAD"
 }
 
 ## traits <- read.table("traits_of_interest.txt")$V1
@@ -51,13 +51,17 @@ PIP2 <- dap2$PIP
 names(PIP2) <- dap2$gene_SNP
 
 
+###
+### filtering gene_SNP
+fast <- fast%>%filter(gene_SNP%in%dap$gene_SNP)
+
 
 
 ###
 ### gwas data
 fn <- paste0("./gwas_data/", trait, "_impute_gwas.txt.gz")
 summ <- fread(fn, header=T, data.table=F)
-summ <- summ%>%dplyr::select(id_b38, chr, pos, zscore_gwas=zscore, pval_gwas=pval)
+summ <- summ%>%dplyr::select(id_b38, chr, pos, zscore_gwas=zscore, pval_gwas=pval, id_b38_2)
 
 ## pval_gwas <- summ$pval
 ## names(pval_gwas) <- as.character(summ$id_b38) ##summ$panel_variant_id

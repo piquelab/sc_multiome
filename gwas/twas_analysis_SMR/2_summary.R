@@ -44,54 +44,86 @@ grch38_unq <- grch38%>%
     distinct(ensgene, chr, .keep_all=T)%>%dplyr::select(gene=ensgene, chr, biotype, symbol)
 
 
-#########################
-### read twas results ###
-#########################
+ 
+traits <- read.table("traits_of_interest.txt")$V1
+traits <- sort(traits)
+
+
+######################################################
+### Extract protein coding genes and calcualte FDR ###
+######################################################
+
+
+### first calculate FDR then extract the protein coding genes
 
 ###
-
-for (ii in c("eQTL_base", "eQTL_conditions", "eQTL_union")){
+### loop by approach to selecting lead variants
+for (ii in c("eQTL_fastQTL", "eQTL_dap_base", "eQTL_dap_conditions")){
 
 ##ii <- "eQTL_conditions"
 outdir2 <- paste0("./2_summary_twas/", ii, "/")
 if ( !file.exists(outdir2)) dir.create(outdir2, showWarnings=F, recursive=T)
 
-
-traits <- unique(read.table("traits_ls.txt")$V1)
+### loop by  traits 
 for ( trait in traits){
-    
-fn <- paste0("./1_SMR_output/", ii, "/", trait, "_topPIP_twas.txt.gz") 
+
+if ( grepl("dap", ii)){    
+   fn <- paste0("./1_SMR_output/", ii, "/", trait, "_topPIP_twas.txt.gz") 
+}else{
+   fn <- paste0("./1_SMR_output/", ii, "/", trait, "_minP_twas.txt.gz")
+}   
 res <- fread(fn, header=T, data.table=F)
 
 ###    
-res <- res%>%dplyr::select(gene=gene2, id_b38, pval_eqtl, PIP, pval_gwas)    
-res <- res%>%dplyr::filter(gene%in%grch38_unq$gene)    
-pval <- res$pval_gwas
-fdr <- qvalue(pval)
+res <- res%>%mutate(gene2=gsub("\\..*", "", gene), FDR=qvalue(pval_gwas)$qvalues)
+res <- res%>%dplyr::filter(gene2%in%grch38_unq$gene)    
 
-## if ( class(fdr)=="try-error"){
-##    fdr <- qvalue(pval, pi0=1) 
-## }
-    
-res$FDR <- fdr$qvalues
+## pval <- res$pval_gwas
+## fdr <- qvalue(pval)
+## res$FDR <- fdr$qvalues
 
 ###    
 grch38_unq2 <- grch38_unq[,c("gene", "symbol")]     
-res <- res%>%arrange(pval_gwas)%>%left_join(grch38_unq2, by="gene")
-
+res <- res%>%arrange(pval_gwas)%>%left_join(grch38_unq2, by=c("gene2"="gene"))
+    
+ 
 ### output-1 all test genes    
 opfn <- paste(outdir2, trait, "_twas.txt", sep="")
 write.table(res, opfn, row.names=F, col.names=T, quote=F)
 
-### output-2, twas genes with FDR<0.1    
-res2 <- res%>%dplyr::filter(FDR<0.1)
-opfn2 <- paste(outdir2, trait, "_twas2_sig.xlsx", sep="")
-write.xlsx(res2, file=opfn2, overwrite=T)
-
-cat(ii, trait, nrow(res2), "\n")    
+cat(ii, trait, sum(res$FDR<0.1), "\n")    
 } ### trait
 } ### conditions
 
+
+
+
+###
+### summary number of significant genes
+
+traits <- read.table("traits_of_interest.txt")$V1
+traits <- sort(traits)
+
+conditions <- c("eQTL_fastQTL", "eQTL_dap_base", "eQTL_dap_conditions")
+summ <- map_dfr(traits, function(trait){
+    ##
+    ngene <- sapply(conditions, function(ii){
+       ## 
+       fn <- paste0("./2_summary_twas/", ii, "/", trait, "_twas.txt", sep="")
+       x <- read.table(fn, fill=T, header=T)
+       sigs <- x%>%filter(FDR<0.1)%>%pull(gene2)%>%unique()
+       sigs <- unique(gsub("\\..*", "", sigs)) 
+       nn <- length(sigs)
+       nn
+     })
+    ##
+    df2 <- data.frame(traits=trait)
+    df2 <- cbind(df2, t(ngene))
+    df2
+})    
+
+opfn <- "./2_summary_twas/1_summary_ngene.xlsx"
+write.xlsx(summ, opfn, overwrite=T)
 
 ## fn <- "./2_summary_twas/eQTL_base/Asthma_twas.txt" 
 ## x1 <- read.table(fn, header=T)%>%dplyr::select(gene, x1=pval_gwas)
@@ -118,106 +150,128 @@ cat(ii, trait, nrow(res2), "\n")
 ########################################################
 
 
-col2 <- c("eQTL_base"="#868686", "eQTL_conditions"="#d01c8b", "eQTL_union"="#e66101")    
+outdir2 <- "./2_summary_twas/twas_hist/"
+if ( !file.exists(outdir2)) dir.create(outdir2, showWarnings=F, recursive=T)
+
+
+col2 <- c("fastQTL"="#868686", "dap_base"="#e66101", "dap_conditions"="#d01c8b")    
+dap_value <- c("fastQTL"=1, "dap_base"=2, "dap_conditions"=3)
+facet_lab <- as_labeller(c("fastQTL"="fastQTL", "dap_base"="dap_base", "dap_conditions"="dap_scMultiome"))
 
 ###
-traits <- unique(read.table("traits_ls.txt")$V1)
-ypos_vec <- c(800, 500, 2100, 1300, 2000)
-names(ypos_vec) <- traits
-
+traits <- read.table("traits_of_interest.txt")$V1
+traits <- sort(traits)
+ 
+## ypos_vec <- c(800, 500, 2100, 1300, 2000)
+## names(ypos_vec) <- traits
+ 
 ###
 for (trait in traits){
 
 cat(trait, "\n")
     
 ### plot data    
-dapdir <- c("eQTL_base", "eQTL_conditions", "eQTL_union")
+dapdir <- c("eQTL_fastQTL", "eQTL_dap_base", "eQTL_dap_conditions")
 plotDF <- map_dfr(dapdir, function(ii){
-    ###
-    fn <- paste("./2_summary_twas/", ii, "/", trait, "_twas.txt",  sep="")
-    res <- read.table(fn, header=T) 
-    res <- res%>%dplyr::select(gene, pval_gwas)
-    res$dap <- ii
-    res
+   ###
+   if ( grepl("dap", ii)){    
+      fn <- paste0("./1_SMR_output/", ii, "/", trait, "_topPIP_twas.txt.gz") 
+   }else{
+      fn <- paste0("./1_SMR_output/", ii, "/", trait, "_minP_twas.txt.gz")
+   }   
+   res <- read.table(fn, header=T)
+   res <- res%>%dplyr::select(gene, pval_gwas)
+   res$dap <- gsub("eQTL_", "", ii)
+   res
 })
 
-
+plotDF <- plotDF%>%mutate(dap_val=as.numeric(dap_value[dap]), dap2=fct_reorder(dap, dap_val))
+    
+        
 #### annotation text    
 annoDF <- map_dfr(dapdir, function(ii){
-    ###
-    fn <- paste("./2_summary_twas/", ii, "/", trait, "_twas.txt",  sep="")
-    res <- read.table(fn, header=T)
-    pval <- res$pval_gwas
-    fdr <- qvalue(res$pval_gwas)
+   ###
+   if ( grepl("dap", ii)){    
+      fn <- paste0("./1_SMR_output/", ii, "/", trait, "_topPIP_twas.txt.gz") 
+   }else{
+      fn <- paste0("./1_SMR_output/", ii, "/", trait, "_minP_twas.txt.gz")
+   }
+   res <- read.table(fn, header=T) ##%>%dplyr::select(gene, pval_gwas)
+   pval <- res$pval_gwas
+   fdr <- qvalue(res$pval_gwas)
     ##pi0 <- propTrueNull(pval)   
     ngene <- nrow(res)
 
     ## FDR
-    ## pi0 <- round(fdr$pi0, digits=3) ## from FDR
-    ## eq2 <- as.expression(bquote(~pi==.(pi0)))
+    pi0 <- round(fdr$pi0, digits=3) ## from FDR
+    eq2 <- as.expression(bquote(~pi==.(pi0)))
 
     ## lambda
-    pi0 <- (2*sum(pval<=0.5))/length(pval)
-    pi0 <- round(pi0, digits=3)
-    eq2 <- as.expression(bquote(~pi<=.(pi0)))
+    ## pi0 <- (2*sum(pval<=0.5))/length(pval)
+    ## pi0 <- round(pi0, digits=3)
+    ## eq2 <- as.expression(bquote(~pi<=.(pi0)))
     
-
     cat(ii, pi0, "\n")
+    ii2 <- gsub("eQTL_", "", ii)
     ##
-    df2 <- tibble(dap=ii, pi=pi0, eq=eq2, yline=ngene*pi0)
+    df2 <- tibble(dap=ii2, pi=pi0, eq=eq2, yline=ngene*pi0)
     df2
 })
-
-ypos_i <- ypos_vec[trait]    
+annoDF <- annoDF%>%mutate(dap_val=as.numeric(dap_value[dap]), dap2=fct_reorder(dap, dap_val))
+    
+    
+ypos_i <- 800   
 annoDF <- annoDF%>%mutate(xpos=0.75, ypos=ypos_i, yline2=yline/40)    
-
+    
 p2 <- ggplot(plotDF)+
    geom_histogram(aes(x=pval_gwas, color=factor(dap)), fill=NA, bins=40)+
    geom_text(data=annoDF, aes(x=xpos, y=ypos, label=eq), size=5, parse=T)+
-   ##geom_hline(data=annoDF, aes(yintercept=yline2, color=factor(dap)), linetype="dashed")+ 
+   geom_hline(data=annoDF, aes(yintercept=yline2, color=factor(dap)), linetype="dashed")+ 
    xlab("P value of TWAS")+
-   scale_y_continuous("Number of genes")+
-   facet_wrap(~dap, ncol=3, scales="fixed")+
-   scale_color_manual(values=col2)+ 
+   scale_y_continuous("Number of genes", expand=expansion(mult=c(0, 0.3)))+
+   facet_wrap(~dap2, ncol=3, scales="fixed", labeller=facet_lab)+
+   scale_color_manual(values=col2)+
+   ggtitle(trait)+ 
    theme_bw()+
    theme(## legend.title=element_blank(),
          ## legend.text=element_text(size=10),
          ## legend.key.size=grid::unit(0.8, "lines"),
          legend.position="none",
-         axis.text=element_text(size=10.5),
+         axis.text=element_text(size=10),
          axis.title=element_text(size=12),
-         strip.text=element_text(size=12))
+         strip.text=element_text(size=10),
+         plot.title=element_text(hjust=0.5, size=12))
      
  
-figfn <- paste("./2_summary_twas/Figure1.2_",  trait, "_pval_hist_lambda.png", sep="")
-png(figfn, width=850, height=350, res=120)
-print(p2)
-dev.off()    
- 
+figfn <- paste(outdir2, "Figure1_",  trait, "_pval_hist.png", sep="")
+ggsave(figfn, p2, device="png", width=850, height=380, units="px", dpi=120)
+## png(figfn, width=850, height=350, res=120)
+## print(p2)
+## dev.off()     
 }
     
 
 ###
 ###
-trait <- traits[4]
-twas_gene <- lapply(c("eQTL_base", "eQTL_conditions", "eQTL_union"), function(ii){
-   ## 
-   fn <- paste("./2_summary_twas/", ii, "/", trait, "_twas.txt",  sep="")
-   res <- read.table(fn, header=T)
-   res2 <- res%>%filter(FDR<0.1)
-   res2$gene
-})
+## trait <- traits[4]
+## twas_gene <- lapply(c("eQTL_base", "eQTL_conditions", "eQTL_union"), function(ii){
+##    ## 
+##    fn <- paste("./2_summary_twas/", ii, "/", trait, "_twas.txt",  sep="")
+##    res <- read.table(fn, header=T)
+##    res2 <- res%>%filter(FDR<0.1)
+##    res2$gene
+## })
 
-lengths(twas_gene)
+## lengths(twas_gene)
 
-x12 <- intersect(twas_gene[[1]], twas_gene[[2]])
-cat(length(x12), "\n")
+## x12 <- intersect(twas_gene[[1]], twas_gene[[2]])
+## cat(length(x12), "\n")
 
-x13 <- intersect(twas_gene[[1]], twas_gene[[3]])
-cat(length(x13), "\n")
+## x13 <- intersect(twas_gene[[1]], twas_gene[[3]])
+## cat(length(x13), "\n")
 
-x23 <- intersect(twas_gene[[2]], twas_gene[[3]])
-cat(length(x23), "\n")
+## x23 <- intersect(twas_gene[[2]], twas_gene[[3]])
+## cat(length(x23), "\n")
 
 
 
