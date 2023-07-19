@@ -9,3 +9,4 @@
 - Predicting regulators of epithelial cell state through regularized regression analysis of single cell multiomic sequencing， https://www.biorxiv.org/content/10.1101/2022.12.29.522232v1.full 
 - Integrating genetics with single-cell multiomic measurements across disease states identifies mechanisms of beta cell dysfunction in type 2 diabetes, https://www.nature.com/articles/s41588-023-01397-9
 - ArchR is a scalable software package for integrative single-cell chromatin accessibility analysis, https://www.nature.com/articles/s41588-021-00790-6
+- Single-cell RNA sequencing reveals distinct T cell populations in immune-related adverse events of checkpoint inhibitors, https://www.sciencedirect.com/science/article/pii/S2666379122004323?via%3Dihub 
