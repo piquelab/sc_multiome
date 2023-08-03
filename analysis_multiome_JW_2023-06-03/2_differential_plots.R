@@ -19,6 +19,15 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
  
 
 
+###
+### counts data
+## fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/1_YtX.sel_clusters_0.1_cn.rds"
+## x <- read_rds(fn)
+
+fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/1_YtX.sel_0.1_cn.rds"
+x <- read_rds(fn)
+
+
 ######################
 ### summary of DEG ###
 ######################
@@ -40,6 +49,10 @@ res2 <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%
 
 summ <- res2%>%group_by(MCls, contrast)%>%summarize(ngene=n(), .groups="drop")
 mat <- summ%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=ngene)
+
+
+res2%>%group_by(contrast)%>%summarize(ngene=length(unique(gene)), .groups="drop")
+res2%>%group_by(MCls)%>%summarize(ngene=length(unique(gene)), .groups="drop")%>%arrange(desc(ngene))
 
 ### data for heatmap
 mat2 <- as.matrix(mat[, -1])
@@ -72,23 +85,23 @@ dev.off()
 
 ###
 ### bar plots for top annotation 
-summDF <- res2%>%group_by(contrast, direction)%>%summarize(ny=n(),.groups="drop")
+summDF <- res2%>%group_by(contrast)%>%summarize(ny=length(unique(gene)),.groups="drop")
 
 ## col=list(celltype=c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56", "3_TEM"="blue",
 ##                    "4_Bcell"="#4daf4a", "5_CD8Naive"="green", "6_Monocyte"="#984ea3", "7_dnT"="black"),
 ##             treats=)
 
-p2 <- ggplot(summDF, aes(x=contrast, y=ny, fill=contrast, color=contrast, alpha=direction))+
+p2 <- ggplot(summDF, aes(x=contrast, y=ny, fill=contrast))+ ## , color=contrast))+ ##, alpha=direction))+
     geom_bar(stat="identity")+
     scale_fill_manual(values=c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
        "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3"), guide="none")+
-    scale_color_manual(values=c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
-       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3"), guide="none")+
-    scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
-         guide=guide_legend(override.aes=list(fill="red", size=1.5)))+
+    ## scale_color_manual(values=c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+    ##    "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3"), guide="none")+
+    ## scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
+    ##      guide=guide_legend(override.aes=list(fill="red", size=1.5)))+
     ylab("DEGs")+                                                     
     theme_bw()+
-    theme(legend.position=c(0.8, 0.8),
+    theme(legend.position="none", ##c(0.8, 0.8),
           legend.title=element_blank(),
           legend.key=element_blank(),
           legend.box.background=element_blank(),
@@ -112,20 +125,20 @@ ggsave(figfn, plot=p2, device="png", width=550, height=300, units="px", dpi=120)
 ###
 ### bar plots for row annotation, group_by, cell type
 
-summDF2 <- res2%>%group_by(MCls, direction)%>%summarize(ny=n(),.groups="drop")
+summDF2 <- res2%>%group_by(MCls)%>%summarize(ny=length(unique(gene)),.groups="drop")
 
-p3 <- ggplot(summDF2, aes(x=MCls, y=ny, fill=MCls, color=MCls, alpha=direction))+
+p3 <- ggplot(summDF2, aes(x=MCls, y=ny, fill=MCls))+ ##, color=MCls, alpha=direction))+
     geom_bar(stat="identity")+
     coord_flip()+
     ## scale_y_reverse()+ y axis in the other side
     scale_fill_manual(values=c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
         "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
         "6_Monocyte"="#984ea3", "7_dnT"="black"), guide="none")+
-    scale_color_manual(values=c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
-        "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
-        "6_Monocyte"="#984ea3", "7_dnT"="black"), guide="none")+
-    scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
-         guide=guide_legend(override.aes=list(fill="#ffaa00", size=1.5)))+
+    ## scale_color_manual(values=c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+    ##     "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+    ##     "6_Monocyte"="#984ea3", "7_dnT"="black"), guide="none")+
+    ## scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
+    ##      guide=guide_legend(override.aes=list(fill="#ffaa00", size=1.5)))+
     ylab("DEGs")+                                                     
     theme_bw()+
     theme(legend.position="none",
@@ -172,7 +185,7 @@ mat2 <- mat2[rnz==0,] ### 7117*48
 corr_mat <- cor(mat2, method="spearman") 
 mycol <- colorRamp2(seq(-1, 1, length.out=100), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(100))
 
-
+ 
 ###
 ### annotation columns
 col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
@@ -371,7 +384,7 @@ p5_3 <- ggplot(DFcorr3, aes(x=comb, y=as.numeric(rr)))+ ##, fill=factor(MCls), g
    theme(legend.position="none",
          axis.title.x=element_blank(),
          axis.title.y=element_text(size=9),
-         axis.text.x=element_text(angle=45, hjust=1, size=8),
+         axis.text.x=element_text(angle=45, hjust=1, size=7.5),
          axis.text.y=element_text(size=9))                         
   
 figfn <- paste(outdir, "Figure1.6_pairtreats.box.png", sep="")
@@ -397,6 +410,10 @@ res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_
 res2 <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%
    mutate(direction=ifelse(estimate>0, "Up", "Down")) # sign(estimate)))
 
+
+res2%>%group_by(contrast)%>%summarize(ngene=length(unique(gene)), .groups="drop")
+res2%>%group_by(MCls)%>%summarize(ngene=length(unique(gene)), .groups="drop")%>%arrange(desc(ngene))
+ 
 sigs <- unique(res2$gene)
 
 summ <- res2%>%group_by(MCls, contrast)%>%summarize(ngene=n(), .groups="drop")
@@ -437,7 +454,7 @@ dev.off()
 
 ###
 ### bar plots for top annotation 
-summDF <- res2%>%group_by(contrast, direction)%>%summarize(ny=n(),.groups="drop")
+summDF <- res2%>%group_by(contrast)%>%summarize(ny=length(unique(gene)),.groups="drop")
 
 ## col=list(celltype=c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56", "3_TEM"="blue",
 ##                    "4_Bcell"="#4daf4a", "5_CD8Naive"="green", "6_Monocyte"="#984ea3", "7_dnT"="black"),
@@ -934,7 +951,89 @@ ggsave(figfn, plot=p6_3, device="png", width=460, height=380, units="px", dpi=12
 
 
 
+########################################################################### 
+### compare treat-treat pair of correlation between LFC on RNA and ATAC ###
+###########################################################################
 
+mat <- read_rds("./2_diff_plots.outs/1.x_DEG_corr.rds")
+x <- str_split(colnames(mat), "_", simplify=T)
+df <- data.frame(rn=colnames(mat), MCls=paste(x[,1], x[,2], sep="_"), treats=x[,3])
+
+treat <- sort(unique(df$treats))
+MCls <- sort(unique(df$MCls))
+ntr <- length(treat)
+comb <- NULL
+for (i in 1:(ntr-1)){
+   ##
+   for (j in (i+1):ntr){
+       ii <- paste(treat[i], treat[j], sep="_")
+       comb <- c(comb, ii)
+   }
+}
+
+
+mat2 <- read_rds("./2_diff_plots.outs/2.x_DP_corr.rds")
+
+        
+plotDF <- map_dfr(comb, function(ii){
+   ##
+   tr1 <- gsub("_.*", "", ii)
+   tr2 <- gsub(".*_", "", ii) 
+   df <- map_dfr(MCls, function(oneMCl){
+      ##
+      comb1 <- paste(oneMCl, tr1, sep="_")
+      comb2 <- paste(oneMCl, tr2, sep="_")
+      df2 <- data.frame(comb=ii, MCls=oneMCl, rr_RNA=mat[comb1, comb2], rr_ATAC=mat2[comb1, comb2])
+      df2
+   })
+   df
+})    
+
+
+col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+    "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+     "6_Monocyte"="#984ea3", "7_dnT"="black")
+
+corr <- cor.test(plotDF$rr_RNA, plotDF$rr_ATAC, method="spearman")
+rr <- round(as.numeric(corr$estimate), digits=3)
+eq <- deparse(bquote(italic(rho)==.(rr)~" ***"))
+
+  
+p <- ggplot(plotDF, aes(x=rr_ATAC, y=rr_RNA, color=MCls))+
+   geom_point(aes(color=MCls), size=1.5)+
+   annotate("text", label=eq, x=0.15, y=0.75, parse=T)+ 
+##   geom_smooth(method="lm", se=F)+    
+   scale_color_manual(values=col1)+      
+   xlab("SCC calculated from DARs")+xlim(-0.1, 0.8)+ylab("SCC calculated from DEGs")+ylim(-0.1, 0.8)+
+   theme_bw()+
+   theme(legend.position="none",
+         axis.title=element_text(size=12),
+         axis.text=element_text(size=12))
+##
+figfn <- paste(outdir, "Figure2.7_comapre.png", sep="")
+ggsave(figfn, p, device="png", width=420, height=420, units="px", dpi=120)
+
+
+
+
+###
+### add identical line and fitting lines
+  
+p <- ggplot(plotDF, aes(x=rr_ATAC, y=rr_RNA, color=MCls))+
+   geom_point(size=1.5)+
+   annotate("text", label=eq, x=0.15, y=0.75, parse=T)+ 
+   geom_smooth(method="lm", se=F, size=0.6)+
+   geom_abline(color="grey")+ 
+   scale_color_manual(values=col1)+      
+   xlab("SCC calculated from DARs")+xlim(-0.1, 0.8)+ylab("SCC calculated from DEGs")+ylim(-0.1, 0.8)+
+   theme_bw()+
+   theme(legend.position="none",
+         axis.title=element_text(size=12),
+         axis.text=element_text(size=12))
+##
+figfn <- paste(outdir, "Figure2.7.2_comapre.png", sep="")
+ggsave(figfn, p, device="png", width=420, height=420, units="px", dpi=120)
+          
 
 ### boxplots group by treatments
 ## DFcorr2 <- DFcorr2%>%mutate(rr=round(rr,3))%>%filter(rr<1)
