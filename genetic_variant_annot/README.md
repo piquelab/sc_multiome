@@ -23,3 +23,6 @@ zcat gtex_v8_snpinfor.txt.gz |awk -v OFS='\t' '{print $1,$2,$4,$5}'|bgzip > snp.
 zcat snp.bed.gz |awk -v OFS='\t' '{print $1, $2, $2+1}'|bgzip > snp2.bed.gz & 
 
 ```
+
+In the folder `4_SNPAnnot_correct` we annotated genetic variants using new response motifs. 
+ 

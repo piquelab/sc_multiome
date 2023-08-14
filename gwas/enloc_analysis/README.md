@@ -7,4 +7,6 @@ We use fastenloc software to do colocalization analysis. The three steps are as 
 
 We also run `2_summmary.R` R script to get the INTACT results, the file named `ALOFT_intact.txt`. Run INTACT under the `R version test_4.2.2`
 
+We replicated colocalization analysis using new response motif annotation in the folder `analysis_correct`. 
+
 
