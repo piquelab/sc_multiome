@@ -103,7 +103,7 @@ write.table(anno2, opfn, quote=F, row.names=F, col.names=T)
 ##################################################
 
 ### response motif
-fn <- "./Response_motif/2.3_response_motif_th0.2.txt"
+fn <- "./Response_motif/2.2_response_motif_th0.1.txt"
 resMotif <- read.table(fn, header=T)%>%pull(motif_ID)%>%unique()
 
 

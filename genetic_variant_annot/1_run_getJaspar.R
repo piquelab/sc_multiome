@@ -2,7 +2,8 @@
 library(JASPAR2022)
 library(TFBSTools)
 library(gdata)
- 
+
+
 ###
 
 outdir <- "./JASPAR2022_core/"
@@ -21,3 +22,10 @@ for (i in motif){
     opfn <- paste(outdir, i, ".jaspar", sep="")
     write.fwf(as.matrix(pfm0), opfn, sep="\t", colnames=F)
 }    
+
+
+## pwm
+motif <- read.table("motifList2022.txt")$V1
+
+pwm <- getMatrixSet(x=JASPAR2022, opts=list(specifies=9606, matrixtype="PWM"))
+

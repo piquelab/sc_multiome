@@ -367,18 +367,18 @@ eq <- deparse(bquote(italic(rho)==.(rr)~",***"))
 
 p1 <- ggplot(plotDF, aes(x=ngene, y=rr, color=MCls))+
    geom_point(size=1.5)+
-   annotate("text", label=eq, x=350, y=0.45, parse=T)+ 
+   annotate("text", label=eq, x=380, y=0.45, size=3, parse=T)+ 
    scale_color_manual(values=col1)+
    ggtitle("Option 1")+ 
    xlab("Number of DEGs")+xlim(0, 2000)+
    ylab("SCC of LFC on gene expression and peaks")+ylim(-0.1, 0.5)+ 
    theme_bw()+
-   theme(##legend.position="none",
+   theme(legend.position="none",
          legend.title=element_blank(),
          legend.text=element_text(size=8),
          legend.key.size=unit(0.4, "cm"),
          axis.title=element_text(size=9),
-         axis.text=element_text(size=9),
+         axis.text=element_text(size=8),
          plot.title=element_text(hjust=0.5, size=10))
 
 
@@ -405,24 +405,24 @@ eq <- deparse(bquote(italic(rho)==.(rr)~",***"))
 
 p2 <- ggplot(plotDF2, aes(x=ngene, y=rr, color=MCls))+
    geom_point(size=1.5)+
-   annotate("text", label=eq, x=300, y=0.6, parse=T)+ 
+   annotate("text", label=eq, x=400, y=0.75, size=3, parse=T)+ 
    scale_color_manual(values=col1)+
    xlab("Number of DEGs")+xlim(0, 2000)+
-   ylab("SCC of LFC on gene expression and ATAC")+ylim(-0.25, 0.7)+
+   ylab("SCC of LFC on gene expression and ATAC")+ylim(-0.25, 0.8)+
    ggtitle("Option 2")+ 
    theme_bw()+
    theme(legend.title=element_blank(),
          legend.text=element_text(size=8),
          legend.key.size=unit(0.4, "cm"),
-         axis.title=element_text(size=10),
-         axis.text=element_text(size=9),
+         axis.title=element_text(size=9),
+         axis.text=element_text(size=8),
          plot.title=element_text(hjust=0.5, size=10))
 
 ###
 ###
 comb_plots <- plot_grid(p1, p2, ncol=2, align="h", rel_widths=c(1, 1.5))
 figfn <- paste(outdir, "Figure1.4_compare_scatter.png", sep="")
-ggsave(figfn, comb_plots, device="png", width=720, height=380, units="px", dpi=120)
+ggsave(figfn, comb_plots, device="png", width=780, height=380, units="px", dpi=120)
 
 
 
@@ -494,8 +494,8 @@ p2 <- ggplot(plotDF2, aes(x=ngene, y=rr, color=MCls))+
    geom_point(size=1.5)+
    annotate("text", label=eq, x=1500, y=0.75, size=3, parse=T)+ 
    scale_color_manual(values=col1)+
-   xlab("Number of DEGs")+xlim(0, 5000)+
-   ylab("SCC of LFC on gene expression and ATAC")+ylim(-0.25, 0.8)+
+   xlab("Number of DARs")+xlim(0, 5000)+
+   ylab("SCC of LFC on gene expression and peaks")+ylim(-0.25, 0.8)+
    ggtitle("Option 2")+ 
    theme_bw()+
    theme(legend.title=element_blank(),

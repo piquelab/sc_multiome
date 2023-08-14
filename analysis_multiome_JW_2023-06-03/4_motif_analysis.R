@@ -27,6 +27,15 @@ outdir <- "./4_motif_plots.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
+
+###
+### We generated respone motif analysis using Mhmd's script, ./4.0_motif_compare.outs/3.2_motif_diff_fitInd_JW.rds
+### Then cp this file to the folder 4_motif_plots.outs for further analysis
+#### The folder, ./4_motif_plots.outs/response_motif_correct contain response motifs using the above file
+### Aug-8-2023, By JW
+
+
+
 ###
 ### motif name
 fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/1_scATAC.motifActivities.rds"

@@ -9,6 +9,7 @@ library(SeuratData)
 library(Signac)
 library(SeuratWrappers)
 library(SeuratObject)
+library(qvalue)
 
 
 ##
@@ -25,7 +26,15 @@ rm(list=ls())
 
 outdir <- "./4.0_motif_compare.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
- 
+
+###
+### 3.2_motif_diff_fitInd_JW.rds I generated using Mhmd's script considering individual
+### in the differetial analysis and the final used for genetic analysis
+### 3.3_motif_diff_JW.rds I generated using Mhmd's script not considering individual
+### 2_motif.ave_macs2_0.1_cn_control.rds average motif activity across cells per combinations
+
+
+
 
 ###
 ### motif name
@@ -47,6 +56,20 @@ res <- res%>%mutate(rn_id=paste(comb, gene, sep="_"))%>%
    select(rn_id, comb, MCls, contrast, zscore)
 
 comb_set <- sort(unique(res$comb))
+
+
+###
+res2 <- map_dfr(comb_set, function(ii){
+   ###
+   tmp <- res%>%dplyr::filter(comb==ii)
+   th0 <- quantile(abs(tmp$beta), probs=0.9)
+   tmp2 <- tmp%>%filter(qval<0.1, abs(beta)>th0)%>%dplyr::select(motif_ID=gene, motif_name=motif, comb)
+   tmp2
+})
+summ <- res2%>%group_by(comb)%>%summarize(ny=n(), .groups="drop")%>%as.data.frame()
+    
+
+
 
 
 ###
@@ -267,7 +290,6 @@ comb_set <- sort(unique(res$comb))
 ### file I generated using Mohammed's script
 ## fn2 <- "./4.0_motif_compare.outs/3.2_motif_diff_fitInd_JW.rds"
 fn2 <- "./4.0_motif_compare.outs/3.3_motif_diff_JW.rds"
-
 res2 <- read_rds(fn2)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
 res2 <- res2%>%filter(comb%in%comb_set)%>%
     mutate(rn_id=paste(comb, gene, sep="_"))%>%
@@ -294,6 +316,64 @@ p <- ggplot(res_comb, aes(x=zscore_JW, y=zscore, color=contrast))+
    scale_color_manual(values=col2, guide=guide_legend(override.aes=list(size=2)))+
    geom_abline(color="grey")+ 
    xlab(bquote(italic(Z)~"-score I generated using Mohammed's script(not ind)"))+
+   ylab(bquote(italic(Z)~"-score from new file"))+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text=element_text(size=9),
+         legend.key.size=unit(0.5, "cm"),
+         axis.title=element_text(size=10),
+         axis.text=element_text(size=10))
+
+figfn <- paste(outdir, "Figure1.2_compare_zscore_JWvsMohammed.png", sep="")
+ggsave(figfn, p, device="png", width=920, height=420, units="px", dpi=120)
+
+
+
+
+#################################################################
+### Compare the differential file currently used and old used ###
+#################################################################
+
+###
+### response motifs recent file
+## fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/3_motif.diff.results_macs2_0.1_cn_indfilt_incsampleID_all_cols_control.rds"
+fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/3_motif.diff.results_macs2_0.1_cn.rds"
+res <- read_rds(fn)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
+res <- res%>%mutate(rn_id=paste(comb, gene, sep="_"))%>%
+   select(rn_id, comb, MCls, contrast, zscore)
+
+comb_set <- sort(unique(res$comb))
+
+
+###
+### file I generated using Mohammed's script
+fn2 <- "./4.0_motif_compare.outs/3.2_motif_diff_fitInd_JW.rds"
+res2 <- read_rds(fn2)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
+res2 <- res2%>%filter(comb%in%comb_set)%>%
+    mutate(rn_id=paste(comb, gene, sep="_"))%>%
+    select(rn_id, zscore_JW=zscore)
+
+
+###
+### plot data
+res_comb <- res%>%inner_join(res2, by="rn_id")
+
+
+### colors
+col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+   "6_Monocyte"="#984ea3", "7_dnT"="black")
+col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+
+
+### plots
+p <- ggplot(res_comb, aes(x=zscore_JW, y=zscore, color=contrast))+
+   geom_point(size=0.2)+
+   facet_wrap(~MCls, ncol=4, scales="free")+
+   scale_color_manual(values=col2, guide=guide_legend(override.aes=list(size=2)))+
+   geom_abline(color="grey")+ 
+   xlab(bquote(italic(Z)~"-score I generated using Mohammed's script (fit ind)"))+
    ylab(bquote(italic(Z)~"-score from old file"))+
    theme_bw()+
    theme(legend.title=element_blank(),
@@ -302,181 +382,105 @@ p <- ggplot(res_comb, aes(x=zscore_JW, y=zscore, color=contrast))+
          axis.title=element_text(size=10),
          axis.text=element_text(size=10))
 
-figfn <- paste(outdir, "Figure1.3_compare_zscore.png", sep="")
-ggsave(figfn, p, device="png", width=920, height=420, units="px", dpi=120)
+figfn <- paste(outdir, "Figure2_compare_zscore_newJW_OldMhmd.png", sep="")
+ggsave(figfn, p, device="png", width=950, height=480, units="px", dpi=120)
 
 
 
+### monocytes
+plotDF <- res_comb%>%filter(MCls=="6_Monocyte")
+p2 <- ggplot(plotDF, aes(x=zscore_JW, y=zscore, color=contrast))+
+   geom_point(size=0.2)+
+   facet_wrap(~contrast, ncol=3, scales="free")+
+   scale_color_manual(values=col2, guide=guide_legend(override.aes=list(size=2)))+
+   geom_abline(color="grey")+ 
+   xlab(bquote(italic(Z)~"-score I generated using Mohammed's script (fit ind)"))+
+   ylab(bquote(italic(Z)~"-score from old file"))+
+   theme_bw()+
+   theme(legend.title=element_blank(),
+         legend.text=element_text(size=9),
+         legend.key.size=unit(0.5, "cm"),
+         axis.title=element_text(size=10),
+         axis.text=element_text(size=10))
 
+figfn <- paste(outdir, "Figure2.2_compare_zscore_Monocyte.png", sep="")
+ggsave(figfn, p2, device="png", width=820, height=480, units="px", dpi=120)
 
-
-
-
-## atac <- read_rds("./2_motif.activities.outs/1_scATAC.motifActivities.rds")
-## motif <- Motifs(atac)
-
-## motif
-
-## x <- unlist(motif@motif.names)
-## head(x)
-
-## res2 <- res2%>%mutate(motif=x[gene])
-## head(res2)
-
-
-
-
-
-
-
-
-
-### motif matrix
-dfmat <- res%>%pivot_wider(id_cols=gene, names_from=comb, values_from=zscore)
-mat <- dfmat%>%column_to_rownames(var="gene")%>%as.matrix()
-
-
-###
-### get colnames and re-order by treats
-rn <- colnames(mat)
-x <- str_split(rn, "_", simplify=T)
-cvt <- data.frame(comb=rn, MCls=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
-cvt <- cvt%>%arrange(contrast)
-mat <- mat[,cvt$comb]
 
 
 ####
-#### select motifs
+#### number response motifs at different threshold 
+fn <- "./4.0_motif_compare.outs/3.2_motif_diff_fitInd_JW.rds"
+res <- read_rds(fn2)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
 
-### response motif
-top_motif <- lapply(comb, function(ii){
-    ##
-    x <- res%>%filter(comb==ii)
-    th0 <- quantile(abs(x$beta), probs=0.9)
-    motif <- x%>%filter(qval<0.1, abs(beta)>th0)%>%pull(gene)%>%unique()
-    motif
+###
+comb <- sort(unique(res$comb))
+summ <- map_dfr(comb, function(ii){
+   ###
+   tmp <- res%>%dplyr::filter(comb==ii)
+
+   ###
+   ths <- quantile(abs(tmp$beta), probs=c(0.5, 0.75, 0.8, 0.9)) 
+   nums <- sapply(ths, function(th0){
+   ###     
+      motifs <- tmp%>%filter(qval<0.1, abs(beta)>th0)%>%pull(gene)%>%unique()
+      length(motifs)
+   })
+   df2 <- data.frame(comb=ii, t(nums))
+   names(df2) <- c("comb", "motifs_th0.5", "motifs_th0.75", "motifs_th0.8", "motifs_th0.9")
+   df2     
 })
-top_motif <- unique(unlist(top_motif))
 
 ###
-### Final select motif
-vm <- apply(mat, 1, var)
-vm_top <- sort(vm[top_motif], T)
-sel_motif <- names(vm_top)[1:80]
-
-
-
-###
-### plot data
-mat2 <- mat[sel_motif,]
-rownames(mat2) <- unname(motifs[sel_motif])
-
-
-### color for heatmap value
-y <- as.vector(mat2)
-##y0 <- y[abs(y)<2] ### quantile(abs(y), probs=0.99)
-mybreak <- c(min(y,na.rm=T), seq(-6, 6, length.out=98), max(y,na.rm=T))
-
-quantile(abs(y), probs=c(0.9,0.95,0.99))
-range(y)
-
-mycol <- colorRamp2(mybreak, colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(100))
-
+fn <- "./4.0_motif_compare.outs/3.2_motif_diff_fitInd_JW.rds"
+res <- read_rds(fn2)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
+ii <- comb[37]
+res2 <- res%>%filter(comb==ii)%>%arrange(desc(zscore))
+res3 <- res2%>%mutate(qval2=qvalue(pval)$qvalue)
  
 ###
-### annotation columns
-col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
-  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
-   "6_Monocyte"="#984ea3", "7_dnT"="black")
-col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
-       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
-
-
-x <- str_split(colnames(mat2), "_", simplify=T)
-df_col <- data.frame(celltype=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
-col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1, contrast=col2),
-    annotation_name_gp=gpar(fontsize=10),
-    annotation_legend_param=list(
-  celltype=list(title_gp=gpar(fontsize=9), labels_gp=gpar(fontsize=9), title="celltype",
-                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")),
-  contrast=list(title_gp=gpar(fontsize=9), labels_gp=gpar(fontsize=9), title="contrast",
-                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm"))),
-  simple_anno_size=unit(0.3, "cm"))
-
-
 ###
-### main heatmap
-
-p1 <- Heatmap(mat2, col=mycol,
-   cluster_rows=T, cluster_columns=F,
-   show_row_names=T, row_names_gp=gpar(fontsize=6),
-   show_column_names=T, column_names_gp=gpar(fontsize=6),
-   show_row_dend=F, show_column_dend=F,
-   ##column_names_rot=-45,   
-   top_annotation=col_ha,
-   heatmap_legend_param=list(title=bquote(~italic(Z)~"-score"),
-      title_gp=gpar(fontsize=9),
-      at=seq(-9, 9, by=3), 
-      labels_gp=gpar(fontsize=9),
-      grid_width=grid::unit(0.45, "cm"),
-      legend_height=grid::unit(7.8, "cm")))
- 
-###
-figfn <- paste(outdir, "Figure1.1_motif.heatmap.png", sep="")
-## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
-png(figfn, width=900, height=1000,res=120)
-set.seed(0)
-p1 <- draw(p1)
-dev.off()
+fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/3_motif.diff.results_macs2_0.1_cn.rds"
+res <- read_rds(fn)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
+res2 <- res%>%filter(comb==ii)%>%arrange(desc(zscore))
 
 
 
 
-
-### cluster gene and re-order gene
-hmap <- Heatmap(mat2, cluster_rows=T, cluster_columns=F)
-set.seed(0)
-hmap <- draw(hmap)
-cl <- row_order(hmap)
-
-geneSel <- rownames(mat2)
-DF_cl <- NULL
-for (i in 1:length(cl)){
-   cl_tmp <- data.frame(cluster=i, gene=geneSel[cl[[i]]])
-   DF_cl <- rbind(DF_cl, cl_tmp)
-}
-opfn <- paste(outdir, "3.0_gene_reorder.xlsx", sep="")
-write.xlsx(DF_cl, file=opfn, overwrite=T)
+#########################################
+### Summary number of response motifs ###
+#########################################
 
 
+fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/3_motif.diff.results_macs2_0.1_cn_indfilt_incsampleID_all_cols_control.rds"
+res <- read_rds(fn)%>%mutate(comb=paste(MCls, contrast, sep="_"))
 
+fn2 <- "./4.0_motif_compare.outs/3.2_motif_diff_fitInd_JW.rds"
+res2 <- read_rds(fn2)%>%mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr)
 
+comb <- sort(unique(res$comb))
 
-
-## fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/3_motif.diff.results_macs2_0.1_cn.rds"
-## res2 <- read_rds(fn)%>%mutate(comb=paste(MCls, contrast, sep="_"))
-
-## ## compare
-## df_olap <- map_dfr(comb, function(ii){
-##    ###
-##    cat(ii, "\n")
+## compare
+df_olap <- map_dfr(comb, function(ii){
+   ###
+   cat(ii, "\n")
     
-##    x <- res%>%filter(comb==ii)
-##    th0 <- quantile(abs(x$beta), probs=0.9)
-##    motif <- x%>%filter(qval<0.1, abs(beta)>th0)%>%pull(gene)%>%unique()
+   x <- res%>%filter(comb==ii)
+   th0 <- quantile(abs(x$beta), probs=0.9)
+   motif <- x%>%filter(qval<0.1, abs(beta)>th0)%>%pull(gene)%>%unique()
 
-##    ##
-##    x2 <- res2%>%filter(comb==ii)
-##    th0 <- quantile(abs(x2$beta), probs=0.9)
-##    motif2 <- x2%>%filter(qval<0.1, abs(beta)>th0)%>%pull(gene)%>%unique()    
+   ##
+   x2 <- res2%>%filter(comb==ii)
+   th0 <- quantile(abs(x2$beta), probs=0.9)
+   motif2 <- x2%>%filter(qval<0.1, abs(beta)>th0)%>%pull(gene)%>%unique()    
 
-##    summ <- data.frame(comb=ii, nmotif_new=length(motif), nmotif_old=length(motif2),
-##                       nolap=length(intersect(motif, motif2)))
-##    summ
-## })
+   summ <- data.frame(comb=ii, nmotif_Mhmd=length(motif), nmotif_JW=length(motif2),
+                      nolap=length(intersect(motif, motif2)))
+   summ
+})
 
-## opfn <- paste(outdir, "0_compare_new_old.xlsx", sep="")
-## write.xlsx(df_olap, file=opfn, overwrite=T)
+opfn <- paste(outdir, "0_compare_Mhmd_JW.xlsx", sep="")
+write.xlsx(df_olap, file=opfn, overwrite=T)
 
 ### motif activities
 ## fn <- "./sc_multiome_data/3_motif/2_motif.activities.outs/2_motif.ave_macs2_0.1_cn_control.rds"

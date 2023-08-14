@@ -116,8 +116,20 @@ opfn <- "./3_summary.outs/0_summ.xlsx"
 write.xlsx(df3, opfn, overwrite=T)
 
 
+#########################
+#### sumary for final ###
+#########################
+
+fn <- "../../analysis_multiomic_2023-03-27/3_motif/Response_motif/2_summary.xlsx"
+summ <- read.xlsx(fn)
+summ <- summ[,c(1:3, 6, 7)]
 
 
+x <- fread("./torus_input/zzz_torus.annot.gz", header=T, data.table=F)
+nsnp <- colSums(x[,-c(1,2)])
+df <- data.frame(comb=gsub("_d$", "", names(nsnp)), nsnp_0.1=nsnp)
 
-
-
+df2 <- summ%>%full_join(df, by="comb")%>%arrange(comb)
+df2 <- df2%>%mutate(th_0.1=round(th_0.1, 2))
+opfn <- "./3_summary.outs/0.1_summ.xlsx"
+write.xlsx(df2, file=opfn, overwrite=T)

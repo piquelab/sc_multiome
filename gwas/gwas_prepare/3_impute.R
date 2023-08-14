@@ -11,7 +11,7 @@ args=commandArgs(trailingOnly=T)
 if ( length(args)>0){
    ##
    trait <- args[1] 
-   snpFile <- args[2]
+   snpFile <- args[2]    
 }else{
    trait <- "CARDIoGRAM_C4D_CAD"
    snpFile <- "zzz_splitSNP0000"
@@ -42,7 +42,7 @@ bed <- data.frame(id_b38=snp, chr=cvt[,1], pos=cvt[,2])
 
 
 ###
-### imputation 
+### imputation
 nsnp <- nrow(bed)
 time0 <- Sys.time()
 tmp <- lapply(1:nsnp, function(i){
@@ -54,9 +54,14 @@ tmp <- lapply(1:nsnp, function(i){
    ## +/- 10 kb 
    s0 <- pos_i-1e+04
    s1 <- pos_i+1e+04
-   
-   tmp2 <- summ%>%filter(chr==chr_i, as.numeric(pos)>=s0, as.numeric(pos)<=s1)
-   if ( nrow(tmp2)!=0){
+    
+   tmp2 <- summ%>%filter(chr==chr_i)
+   pos <- tmp2$pos
+   sub0 <- pos>=s0&pos<s1 
+   nsnp <- sum(sub0)
+    
+   if ( nsnp>0){
+      tmp2 <- tmp2[sub0,] 
       dtss <- abs(as.numeric(tmp2$pos)-pos_i)
       imin <- which.min(dtss)
       tmp3 <- data.frame(id_b38=bed$id_b38[i], chr=chr_i, pos=pos_i,
@@ -67,6 +72,7 @@ tmp <- lapply(1:nsnp, function(i){
    }   
    tmp3
 })
+
 
 time1 <- Sys.time()
 diff0 <- difftime(time1, time0, units="secs")
@@ -82,5 +88,6 @@ ii <- gsub("zzz_", "",  snpFile)
 gfn <- gzfile(paste(outdir2, "gwas_", ii, ".txt.gz", sep=""))
 write.table(tmp, file=gfn, row.names=F, col.names=F, quote=F)
 
+rm(list=ls())
 
 ###END

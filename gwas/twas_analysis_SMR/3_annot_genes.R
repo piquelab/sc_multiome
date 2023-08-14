@@ -19,8 +19,10 @@ library(limma)
 ## library(monocle3)
 
 
-##library(ComplexHeatmap)
-##library(circlize)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(viridis)
 library(openxlsx)
 library(cowplot)
 library(ggrepel)
@@ -114,6 +116,391 @@ summ <- map_dfr(traits, function(trait){
 
 opfn <- "./3_examples_output/1_intact_summ.xlsx"
 write.xlsx(summ, file=opfn, overwrite=T)
+
+fn <- "./3_examples_output/1_intact_summ.xlsx"
+x <- read.xlsx(fn)
+
+
+##################################################
+### Summary-2, which condition response motifs ###
+##################################################
+
+fn <- "../../gtex_v8/torus/torus_input/zzz_torus.annot.gz"
+annot <- fread(fn, header=T, data.table=F)
+
+rn <- colnames(annot)[-(1:2)]
+x <- str_split(rn, "_", simplify=T)
+DFcond <- data.frame(comb=rn, MCls=paste(x[,1], x[,2], sep="_"), treats=x[,3])
+
+###
+traits <- read.table("traits_of_interest.txt")$V1
+traits <- sort(traits)
+
+###
+for (trait in traits){    
+   cat(trait, "\n") 
+   fn <- paste("./3_examples_output/", trait, "/", trait, "_comb_infor.txt", sep="")
+   res <- read.table(fn, header=T, fill=T)
+   res2 <- res%>%filter(FDR_intact<0.1, nannot>1)%>%dplyr::select(Gene, symbol, SNP=id_b38)
+   annot2 <- annot%>%filter(SNP%in%res2$SNP) 
+   mat2 <- res2%>%left_join(annot2, by="SNP")
+   ##
+   outdir <- paste("./3_examples_output/", trait, "/", sep="")
+   ##if ( !file.exists(outdir)) dir.create(outdir, recursive=T)
+   opfn <- paste(outdir, trait, "_summ_annot.xlsx", sep="") 
+   write.xlsx(mat2, file=opfn, overwrite=T)
+   ###   
+}
+
+
+###
+### summary annotation results
+
+
+###
+traits <- read.table("traits_of_interest.txt")$V1
+traits <- sort(traits)
+###
+trait <- traits[1]
+fn <- paste("./3_examples_output/", trait, "/", trait, "_summ_annot.xlsx", sep="")
+summ <- read.xlsx(fn)
+rn <- colnames(summ)[5:43]
+x <- str_split(rn, "_", simplify=T)
+DFcond <- data.frame(comb=rn, MCls=paste(x[,1], x[,2], sep="_"), treats=x[,3])
+
+
+###
+### summ for each condition 
+summ <- map_dfr(traits, function(trait){
+   ###
+   cat(trait, "\n") 
+   outdir <- paste("./3_examples_output/", trait, "/", sep="")
+   fn <- paste(outdir, trait, "_summ_annot.xlsx", sep="")  
+   x <- read.xlsx(fn)
+   x2 <- x[,c(1,5:43)]
+    
+   ##
+   nx <- ncol(x2) 
+   rn <- colnames(x2)[2:nx]
+   ngene <- sapply(rn, function(ii){
+      ###
+      x3 <- x2[,c("Gene",ii)]  
+      names(x3) <- c("gene", "Y") 
+      gene <- x3%>%filter(Y==1)%>%pull(gene)%>%unique()
+      length(gene)
+   })
+   names(ngene) <- rn 
+   df <- data.frame(traits=trait, nannot=length(unique(x2$Gene)))
+   df <- cbind(df, t(ngene))
+   df
+ })   
+    
+###
+opfn <- "./3_examples_output/2.0_summ_conditions.xlsx"
+write.xlsx(summ, opfn, overwrite=T)
+ 
+
+###
+### summ for each treatment
+treats <- sort(unique(DFcond$treats)) 
+summ <- map_dfr(traits, function(trait){
+   ###
+   cat(trait, "\n") 
+   outdir <- paste("./3_examples_output/", trait, "/", sep="")
+   fn <- paste(outdir, trait, "_summ_annot.xlsx", sep="")  
+   x <- read.xlsx(fn)
+   x2 <- x[,c(1,5:43)]
+   ##
+   ngene <- sapply(treats, function(ii){
+      ###
+      rn <- DFcond%>%filter(treats==ii)%>%pull(comb) 
+      nanno <- rowSums(x2[,rn])
+      x3 <- data.frame(gene=x2$Gene, Y=nanno) 
+      gene <- x3%>%filter(Y>0)%>%pull(gene)%>%unique()
+      length(gene)
+   })
+   names(ngene) <- treats 
+   df <- data.frame(traits=trait, nannot=length(unique(x2$Gene)))
+   df <- cbind(df, t(ngene))
+   df
+ })   
+    
+###
+opfn <- "./3_examples_output/2.1_summ_treats.xlsx"
+write.xlsx(summ, opfn, overwrite=T)
+
+
+###
+### summ for each cell types
+
+MCls <- sort(unique(DFcond$MCls)) 
+summ <- map_dfr(traits, function(trait){
+   ###
+   cat(trait, "\n") 
+   outdir <- paste("./3_examples_output/", trait, "/", sep="")
+   fn <- paste(outdir, trait, "_summ_annot.xlsx", sep="")  
+   x <- read.xlsx(fn)
+   x2 <- x[,c(1,5:43)]
+   ##
+   ngene <- sapply(MCls, function(ii){
+      ###
+      rn <- DFcond%>%filter(MCls==ii)%>%pull(comb) 
+      nanno <- rowSums(x2[,rn])
+      x3 <- data.frame(gene=x2$Gene, Y=nanno) 
+      gene <- x3%>%filter(Y>0)%>%pull(gene)%>%unique()
+      length(gene)
+   })
+   names(ngene) <- MCls 
+   df <- data.frame(traits=trait, nannot=length(unique(x2$Gene)))
+   df <- cbind(df, t(ngene))
+   df
+ })   
+    
+###
+opfn <- "./3_examples_output/2.2_summ_MCls.xlsx"
+write.xlsx(summ, opfn, overwrite=T)
+
+
+
+
+###
+### Proportion of genes annotated in response motifs and heatmap 
+
+outdir <- "./3_examples_output/"
+
+###
+###
+traitDF <- read.xlsx("traits_name_df.xlsx")
+
+####
+fn <- "./3_examples_output/2.0_summ_conditions.xlsx"
+x <- read.xlsx(fn)
+trait_df <- data.frame(traits=x$traits)%>%
+   left_join(traitDF, by=c("traits"="traits_long"))
+x2 <- x[,-c(1,2)]
+nannot <- x$nannot
+x2 <- sweep(x2, 1,  nannot, "/")
+
+
+### conditions data frame
+rn <-  gsub("_d$", "", colnames(x2))
+cvt <- str_split(rn, "_", simplify=T)
+cvt <- data.frame(comb=rn, MCls=paste(cvt[,1], cvt[,2], sep="_"), treats=cvt[,3])
+
+
+### plot data
+xt <- t(x2)
+rownames(xt) <- cvt$comb
+colnames(xt)<- trait_df$traits_short
+
+
+### single colors
+olap_min <- min(xt)
+olap_max <- max(xt)
+mycol <- colorRamp2(seq(0, 1, length.out=100), colorRampPalette(brewer.pal(n=7,name="YlGnBu"))(100))
+
+
+### annotation row
+col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+   "6_Monocyte"="#984ea3", "7_dnT"="black")
+col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+
+df_col <- data.frame(celltype=cvt$MCls, contrast=cvt$treats)
+row_ha <- rowAnnotation(df=df_col, col=list(celltype=col1, contrast=col2),
+    annotation_name_gp=gpar(fontsize=10),
+    annotation_legend_param=list(
+  celltype=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="celltype",
+                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")),
+  contrast=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="contrast",
+                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")))) 
+
+
+###
+### main heatmap  
+p1 <- Heatmap(xt, col=mycol,
+   cluster_rows=F, cluster_columns=F,
+   show_row_names=T, row_names_gp=gpar(fontsize=6),
+   show_column_names=T, column_names_gp=gpar(fontsize=9),
+   ##column_names_rot=-45,   
+   left_annotation=row_ha,
+   heatmap_legend_param=list(title="Percents",
+      title_gp=gpar(fontsize=10),
+      at=seq(0, 1, by=0.2), 
+      labels_gp=gpar(fontsize=8),
+      grid_width=grid::unit(0.45, "cm"),
+      legend_height=grid::unit(7.8, "cm")),
+   cell_fun=function(j,i,x,y, width, height, fill){
+       grid.text(round(xt[i,j], 2), x, y, gp=gpar(fontsize=6))}, 
+   use_raster=T, raster_device="png")
+
+
+###
+figfn <- paste(outdir, "Figure3.0_condition_heatmap.png", sep="")
+## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
+png(figfn, width=800, height=700,res=120)
+p1 <- draw(p1)
+dev.off()
+
+res <- as.data.frame(round(xt,3))
+res$conditions <- rownames(xt)
+opfn <- paste(outdir, "3.0_summ_conditions.xlsx", sep="")
+write.xlsx(res, file=opfn, overwrite=T)
+### Heatmap
+
+
+
+###
+### annotation by treats
+
+fn <- "./3_examples_output/2.1_summ_treats.xlsx"
+x <- read.xlsx(fn)
+trait_df <- data.frame(traits=x$traits)%>%
+   left_join(traitDF, by=c("traits"="traits_long"))
+x2 <- x[,-c(1,2)]
+nannot <- x$nannot
+x2 <- sweep(x2, 1,  nannot, "/")
+rownames(x2) <- trait_df$traits_short
+xt <- as.matrix(x2)
+
+### conditions data frame
+cvt <- data.frame(treats=colnames(x2))
+
+
+
+### single colors
+mycol <- colorRamp2(seq(0, 1, length.out=100), colorRampPalette(brewer.pal(n=7,name="YlGnBu"))(100))
+
+
+### annotation row
+col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+   "6_Monocyte"="#984ea3", "7_dnT"="black")
+col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+
+df_col <- data.frame(contrast=cvt$treats)
+col_ha <- HeatmapAnnotation(df=df_col, col=list(contrast=col2),
+    annotation_name_gp=gpar(fontsize=10),
+    annotation_legend_param=list(
+  ## celltype=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="celltype",
+  ##               grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")),
+  contrast=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="contrast",
+                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")))) 
+
+ 
+###
+### main heatmap  
+p2 <- Heatmap(xt, col=mycol,
+   cluster_rows=F, cluster_columns=F,
+   show_row_names=T, row_names_gp=gpar(fontsize=9),
+   show_column_names=T, column_names_gp=gpar(fontsize=9),
+   ##column_names_rot=-45,   
+   top_annotation=col_ha,
+   heatmap_legend_param=list(title="Percents",
+      title_gp=gpar(fontsize=10),
+      at=seq(0, 1, by=0.2), 
+      labels_gp=gpar(fontsize=8),
+      grid_width=grid::unit(0.38, "cm"),
+      legend_height=grid::unit(6, "cm")),
+   cell_fun=function(j, i, x, y, width, height, fill){
+       grid.text(round(xt[i,j], 3), x, y, gp=gpar(fontsize=8))
+       }) 
+   ## use_raster=T, raster_device="png")
+
+
+###
+figfn <- paste(outdir, "Figure3.1_treats_heatmap.png", sep="")
+## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
+png(figfn, width=580, height=620,res=120)
+p2 <- draw(p2)
+dev.off()
+
+res <- as.data.frame(round(xt,3))
+res$traits <- rownames(xt)
+opfn <- paste(outdir, "3.1_summ_treats.xlsx", sep="")
+write.xlsx(res, file=opfn, overwrite=T)
+### Heatmap
+
+
+
+
+
+
+###
+### annotation by cell types
+fn <- "./3_examples_output/2.2_summ_MCls.xlsx"
+x <- read.xlsx(fn)
+trait_df <- data.frame(traits=x$traits)%>%
+   left_join(traitDF, by=c("traits"="traits_long"))
+x2 <- x[,-c(1,2)]
+nannot <- x$nannot
+x2 <- sweep(x2, 1,  nannot, "/")
+rownames(x2) <- trait_df$traits_short
+xt <- as.matrix(x2)
+
+### conditions data frame
+cvt <- data.frame(MCls=colnames(x2))
+
+
+
+### single colors
+
+mycol <- colorRamp2(seq(0, 1, length.out=100), colorRampPalette(brewer.pal(n=7,name="YlGnBu"))(100))
+
+
+### annotation row
+col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+   "6_Monocyte"="#984ea3", "7_dnT"="black")
+col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+
+df_col <- data.frame(celltype=cvt$MCls)
+col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1),
+    annotation_name_gp=gpar(fontsize=10),
+    annotation_legend_param=list(
+  celltype=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="celltype",
+                grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm"))))
+  ## contrast=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="contrast",
+  ##               grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")))) 
+
+
+###
+### main heatmap  
+p3 <- Heatmap(xt, col=mycol,
+   cluster_rows=F, cluster_columns=F,
+   show_row_names=T, row_names_gp=gpar(fontsize=9),
+   show_column_names=T, column_names_gp=gpar(fontsize=9),
+   ##column_names_rot=-45,   
+   top_annotation=col_ha,
+   heatmap_legend_param=list(title="Percents",
+      title_gp=gpar(fontsize=10),
+      at=seq(0, 1, by=0.2), 
+      labels_gp=gpar(fontsize=8),
+      grid_width=grid::unit(0.38, "cm"),
+      legend_height=grid::unit(6, "cm")),
+   cell_fun=function(j,i,x,y, width, height, fill){
+       grid.text(round(xt[i,j], 3), x, y, gp=gpar(fontsize=8))}) 
+
+
+###
+figfn <- paste(outdir, "Figure3.2_MCls_heatmap.png", sep="")
+## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
+png(figfn, width=600, height=620,res=120)
+p3 <- draw(p3)
+dev.off()
+
+res <- as.data.frame(round(xt,3))
+res$traits <- rownames(xt)
+opfn <- paste(outdir, "3.2_summ_MCls.xlsx", sep="")
+write.xlsx(res, file=opfn, overwrite=T)
+### Heatmap
+
+
+
+
 
 
 

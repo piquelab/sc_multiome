@@ -48,6 +48,13 @@ grch38_unq <- grch38%>%
 traits <- read.table("traits_of_interest.txt")$V1
 traits <- sort(traits)
 
+traitDF <- data.frame(traits_long=traits,
+    traits_short=c("CAD", "Crohns", "IBD", "UC", "MS", "SLE", "RA", "HTN",
+                   "Asthma", "Eczema", "Psoriasis", "Height"))
+
+opfn <- "traits_name_df.xlsx"
+write.xlsx(traitDF, opfn, overwrite=T)
+
 
 ######################################################
 ### Extract protein coding genes and calcualte FDR ###
@@ -101,48 +108,69 @@ cat(ii, trait, sum(res$FDR<0.1), "\n")
 ###
 ### summary number of significant genes
 
-traits <- read.table("traits_of_interest.txt")$V1
-traits <- sort(traits)
+traitDF <- read.xlsx("traits_name_df.xlsx")
+traits <- sort(traitDF$traits_long)
+
+th <- 0.1
+conditions <- c("eQTL_fastQTL", "eQTL_dap_base", "eQTL_dap_conditions")
+summ <- map_dfr(1:nrow(traitDF), function(i){
+    ##
+    trait <- traitDF$traits_long[i]
+    trait_short <- traitDF$traits_short[i]
+    ###
+    ngene <- sapply(conditions, function(ii){
+       ## 
+       fn <- paste0("./2_summary_twas/", ii, "/", trait, "_twas.txt", sep="")
+       x <- read.table(fn, fill=T, header=T)
+       sigs <- x%>%filter(FDR<th)%>%pull(gene2)%>%unique()
+       sigs <- unique(gsub("\\..*", "", sigs)) 
+       nn <- length(sigs)
+       nn
+     })
+    ##
+    df2 <- data.frame(traits_full=trait, traits_short=trait_short)
+    df2 <- cbind(df2, t(ngene))
+    df2
+})    
+
+opfn <- paste("./2_summary_twas/1_summary_ngene_FDR", th, ".xlsx", sep="")
+write.xlsx(summ, opfn, overwrite=T)
+
+
+
+###
+### proportion of p<0.01
 
 conditions <- c("eQTL_fastQTL", "eQTL_dap_base", "eQTL_dap_conditions")
 summ <- map_dfr(traits, function(trait){
     ##
     ngene <- sapply(conditions, function(ii){
-       ## 
-       fn <- paste0("./2_summary_twas/", ii, "/", trait, "_twas.txt", sep="")
-       x <- read.table(fn, fill=T, header=T)
-       sigs <- x%>%filter(FDR<0.1)%>%pull(gene2)%>%unique()
-       sigs <- unique(gsub("\\..*", "", sigs)) 
-       nn <- length(sigs)
-       nn
-     })
+       ##
+       if ( grepl("dap", ii)){    
+           fn <- paste0("./1_SMR_output/", ii, "/", trait, "_topPIP_twas.txt.gz") 
+       }else{
+           fn <- paste0("./1_SMR_output/", ii, "/", trait, "_minP_twas.txt.gz")
+       }   
+       x <- fread(fn, header=T, data.table=F)
+       prop <- round(mean(x$pval_gwas<0.05), digits=3)
+       prop 
+    })
     ##
     df2 <- data.frame(traits=trait)
     df2 <- cbind(df2, t(ngene))
     df2
 })    
 
-opfn <- "./2_summary_twas/1_summary_ngene.xlsx"
+opfn <- "./2_summary_twas/1.2_summary_prop_sig0.05.xlsx"
 write.xlsx(summ, opfn, overwrite=T)
 
-## fn <- "./2_summary_twas/eQTL_base/Asthma_twas.txt" 
-## x1 <- read.table(fn, header=T)%>%dplyr::select(gene, x1=pval_gwas)
+## opfn <- "./2_summary_twas/1.3_summary_prop_sig0.01.xlsx"
+## write.xlsx(summ, opfn, overwrite=T)
 
-## fn <- "./analysis0_no/2_summary_twas/eQTL_base/Asthma_twas.txt"
-## x2 <- read.table(fn, header=T)%>%dplyr::select(gene, x2=pval_gwas)
 
-## plotDF <- x1%>%left_join(x2, by="gene")
- 
-## p <- ggplot(plotDF, aes(x=-log10(x1), y=-log10(x2)))+
-##    geom_point()+
-##    xlab(bquote(~log[10]~"pval"~" from impute"))+
-##    ylab(bquote(~log[10]~"pval"~" from no-impute"))+ 
-##    theme_bw()
 
-## figfn <- "./2_summary_twas/Figue0_asthma.png"
-## png(figfn, width=380, height=380, res=120)
-## print(p)
-## dev.off()
+
+
 
 
 #########################################################

@@ -7,7 +7,7 @@ while read trait; do
 
 ###
 outdir2=./gwas_imputefile/${trait}/
-cat ${outdir2}/gwas_*.txt.gz > gwas_concate.txt.gz 
+cat ${outdir2}/gwas_*.txt.gz > ${outdir2}/gwas_concate.txt.gz 
 
 echo ${trait}
 

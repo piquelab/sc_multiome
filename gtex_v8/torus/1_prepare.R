@@ -2,7 +2,7 @@
 library(tidyverse)
 library(data.table)
 
-options(scipen=200)
+options(scipen=18)
 
 
 rm(list=ls())
@@ -113,6 +113,10 @@ opfn2 <- gzfile(paste(outdir, "zzz_snp.map.gz", sep=""))
 write.table(snp.map2, opfn2,  quote=F, row.names=F, col.names=F)
 
 
+###
+###
+fn <- "./torus_input/zzz_torus.annot.gz"
+x <- fread(fn, header=T, data.table=F)
 
 
 ## fn <- paste(outdir, "zzz_combine2_torus.annot.gz", sep="")
