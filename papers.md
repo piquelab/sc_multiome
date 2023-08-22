@@ -11,3 +11,6 @@
 - ArchR is a scalable software package for integrative single-cell chromatin accessibility analysis, https://www.nature.com/articles/s41588-021-00790-6
 - Single-cell RNA sequencing reveals distinct T cell populations in immune-related adverse events of checkpoint inhibitors, https://www.sciencedirect.com/science/article/pii/S2666379122004323?via%3Dihub
 - High-throughput allele-specific expression across 250 environmental conditions, https://genome.cshlp.org/content/26/12/1627.full
+
+### Example genes
+- Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
