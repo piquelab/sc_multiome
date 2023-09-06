@@ -13,6 +13,7 @@
 - High-throughput allele-specific expression across 250 environmental conditions, https://genome.cshlp.org/content/26/12/1627.full
 - Functional characterization of gene regulatory elements and neuropsychiatric disease-associated risk loci in iPSCs and iPSC-derived neurons, https://www.biorxiv.org/content/10.1101/2023.08.30.555359v1
 - Integrated single-cell chromatin and transcriptomic analyses of human scalp identify gene-regulatory programs and critical cell types for hair and skin diseases, https://www.nature.com/articles/s41588-023-01445-4
+- Identifying Genetic Regulatory Variants that Affect Transcription Factor Activity, https://www.biorxiv.org/content/10.1101/2022.10.21.513166v1.full
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
