@@ -15,6 +15,9 @@
 - Integrated single-cell chromatin and transcriptomic analyses of human scalp identify gene-regulatory programs and critical cell types for hair and skin diseases, https://www.nature.com/articles/s41588-023-01445-4
 - Identifying Genetic Regulatory Variants that Affect Transcription Factor Activity, https://www.biorxiv.org/content/10.1101/2022.10.21.513166v1.full
 - An immune cell atlas reveals the dynamics of human macrophage specification during prenatal development, https://www.sciencedirect.com/science/article/pii/S009286742300908X?via%3Dihub
+- Effector and memory T-cell differentiation: implications for vaccine development, https://www.nature.com/articles/nri778
+- Different Subsets of T Cells, Memory, Effector Functions, and CAR-T Immunotherapy, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4810120/
+- Regulatory genomic circuitry of human disease loci by integrative epigenomics, https://www.nature.com/articles/s41586-020-03145-z
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
