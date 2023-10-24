@@ -23,6 +23,7 @@
 - Distinct explanations underlie gene-environment interactions in the UK Biobank, https://www.medrxiv.org/content/10.1101/2023.09.22.23295969v1
 - A versatile, fast and unbiased method for estimation of gene-by-environment interaction effects on biobank-scale datasets, https://www.nature.com/articles/s41467-023-40913-7#:~:text=Together%2C%20real%20and%20simulated%20data,effects%20on%20biobank%2Dscale%20datasets.
 - GEGenetic regulatory effects in response to a high cholesterol, high fat diet in baboons, https://www.biorxiv.org/content/10.1101/2023.08.01.551489v1.full
+- A comparative atlas of single-cell chromatin accessibility in the human brain, https://www.science.org/doi/10.1126/science.adf7044
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
