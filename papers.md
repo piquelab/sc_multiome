@@ -25,6 +25,8 @@
 - GEGenetic regulatory effects in response to a high cholesterol, high fat diet in baboons, https://www.biorxiv.org/content/10.1101/2023.08.01.551489v1.full
 - A comparative atlas of single-cell chromatin accessibility in the human brain, https://www.science.org/doi/10.1126/science.adf7044
 - Benchmarking algorithms for joint integration of unpaired and paired single-cell RNA-seq and ATAC-seq data, https://genomebiology.biomedcentral.com/articles/10.1186/s13059-023-03073-x
+- Functional dynamic genetic effects on gene regulation are specific to particular cell types and environmental conditions, https://elifesciences.org/articles/67077
+- Interpreting coronary artery disease risk through gene–environment interactions in gene regulation, https://academic.oup.com/genetics/article/213/2/651/5930613
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
