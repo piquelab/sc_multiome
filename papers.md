@@ -29,6 +29,8 @@
 - Interpreting coronary artery disease risk through gene–environment interactions in gene regulation, https://academic.oup.com/genetics/article/213/2/651/5930613
 - Interpretable Inflammation Landscape of Circulating Immune cells,
  https://www.biorxiv.org/content/10.1101/2023.11.28.568839v1
+- Dynamic regulatory elements in single-cell multimodal data implicate key immune cell states enriched for autoimmune disease heritability,
+  https://www.nature.com/articles/s41588-023-01577-7
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
