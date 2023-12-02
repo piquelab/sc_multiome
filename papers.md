@@ -32,6 +32,7 @@
 - Dynamic regulatory elements in single-cell multimodal data implicate key immune cell states enriched for autoimmune disease heritability,
   https://www.nature.com/articles/s41588-023-01577-7
   - Identification of constrained sequence elements across 239 primate genomes, https://www.nature.com/articles/s41586-023-06798-8
+  - Best practices for single-cell analysis across modalities, https://www.nature.com/articles/s41576-023-00586-w
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
