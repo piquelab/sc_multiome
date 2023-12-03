@@ -34,6 +34,7 @@
 - Identification of constrained sequence elements across 239 primate genomes, https://www.nature.com/articles/s41586-023-06798-8
 - Best practices for single-cell analysis across modalities, https://www.nature.com/articles/s41576-023-00586-w
 - Mapping the dynamic genetic regulatory architecture of HLA genes at single-cell resolution, https://www.nature.com/articles/s41588-023-01586-6
+- Tissue-specific enhancer-gene maps from multimodal single-cell data identify causal disease alleles, https://www.medrxiv.org/content/10.1101/2022.10.27.22281574v2
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
