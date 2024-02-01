@@ -8,5 +8,5 @@ We performed a series of  analyses in the following folders,
 - GWAS analysis in the folder `gwas`   
 
 We used "BH" from p.adjust to calculate FDR as default approach.    
-In default, we used all the genes passing filtering conditions to calculate FDR then extracting protein coding genes. 
+In default, we used all the genes passing filtering conditions to calculate FDR and after that we extracte protein coding genes. 
  
