@@ -4,12 +4,12 @@ library(tidyverse)
 library(data.table)
 library(expm)
 library(irlba)
-library(Seurat)
-library(SeuratDisk)
-library(SeuratData)
-library(Signac)
-library(SeuratWrappers)
-library(SeuratObject)
+## library(Seurat)
+## library(SeuratDisk)
+## library(SeuratData)
+## library(Signac)
+## library(SeuratWrappers)
+## library(SeuratObject)
 
 
 ##
@@ -21,7 +21,8 @@ library(circlize)
 library(ggrepel)
 library(ggrastr)
 library(openxlsx)
-
+library(ggrepel)
+library(scales)
 
 ### Library CCA package
 library("rainbow")  ##, lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages")
@@ -33,257 +34,17 @@ library("GGally")
 
 
 rm(list=ls())
-
-
-
-
-
-####################################################################
-### Heatmap-1, correlation, TF motif activity vs gene expression ###
-####################################################################
-
-### input data
-## res <- x%>%dplyr::select(comb, MCls, contrast, motif_name, beta_x, beta_y=beta_rna)%>%drop_na(beta_x, beta_y)
-
-
-## ###
-## ### correlation mat
-## dfcorr <- res%>%group_by(MCls, contrast)%>%
-##     summarize(rr=cor(beta_x, beta_y, method="spearman"), .groups="drop")%>%as.data.frame()
-## dfmat <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
-
-## mat <- dfmat%>%column_to_rownames(var="MCls")
-## mat <- as.matrix(mat)
-
-
-
-## ###
-## ### significance
-## sig <- res%>%group_by(MCls, contrast)%>%
-##     summarize(pval=cor.test(beta_x, beta_y, method="spearman")$p.value, .groups="drop")%>%as.data.frame()
-## sig <- sig%>%mutate(FDR=p.adjust(pval, method="BH"), is_sig=ifelse(FDR<0.05, 1, 0))
-
-## sig_mat <- sig%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=is_sig)%>%as.data.frame()
  
-## sig_mat <- sig_mat%>%column_to_rownames(var="MCls")
-## sig_mat <- as.matrix(sig_mat)
 
-
-## mat2 <- mat*sig_mat
-## mat2[mat2==0] <- NA
-
-
-## ### setting color
-## ## mybreak <- seq(0, 1, length.out=20)
-## ## col0 <- brewer.pal(n=9,name="Reds")
-## ## mycol <- colorRamp2(mybreak, colorRampPalette(col0)(20))
-
-## mycol <- colorRamp2(seq(-1, 1, length.out=50), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(50))
-
-
-## p <- Heatmap(mat2, name="SCC", na_col="grey90", 
-##     col=mycol, cluster_rows=F, cluster_columns=F,
-##     row_names_gp=gpar(fontsize=10), column_names_gp=gpar(fontsize=10), ##column_names_rot=-45,
-##     heatmap_legend_param=list(at=seq(-1, 1, by=0.5),
-##         grid_width=grid::unit(0.38, "cm"), legend_height=grid::unit(4, "cm"),
-##         title_gp=gpar(fontsize=8), labels_gp=gpar(fontsize=8)),
-##     cell_fun=function(j, i, x, y, width, height, fill){
-##        grid.text(round(mat[i,j],digits=3), x, y, gp=gpar(fontsize=9))
-##     })
-
-## figfn <- paste(outdir2, "Figure4.0_corr_DE_Motif_heatmap.png", sep="")
-## png(figfn, height=500, width=520, res=120)
-## print(p)
-## dev.off()
-
-
-
-## ###
-## ### TF activity vs TF-regulated-genes, z-score
-
-## fn <- "./4_motif_plots.outs/2_all_response/1.0_cl6_gene_reorder.xlsx"
-## df_cl <- read.xlsx(fn)
-## motifSel <- unique(df_cl$gene)
-
-## ### input data
-## x2 <- x%>%dplyr::filter(motif_name%in%motifSel)
-## res <- x2%>%dplyr::select(comb, MCls, contrast, motif_name, x=zscore_x, y=zscore_rna)%>%drop_na(x, y)
-
-
-## ###
-## ### correlation mat
-## dfcorr <- res%>%group_by(MCls, contrast)%>%
-##     summarize(rr=cor(x, y, method="spearman"), .groups="drop")%>%as.data.frame()
-## dfmat <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
-
-## mat <- dfmat%>%column_to_rownames(var="MCls")
-## mat <- as.matrix(mat)
-
-
-
-## ###
-## ### significance
-## sig <- res%>%group_by(MCls, contrast)%>%
-##     summarize(pval=cor.test(x, y, method="spearman")$p.value, .groups="drop")%>%as.data.frame()
-## sig <- sig%>%mutate(FDR=p.adjust(pval, method="BH"), is_sig=ifelse(FDR<0.05, 1, 0))
-
-## sig_mat <- sig%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=is_sig)%>%as.data.frame()
- 
-## sig_mat <- sig_mat%>%column_to_rownames(var="MCls")
-## sig_mat <- as.matrix(sig_mat)
-
-
-## mat2 <- mat*sig_mat
-## mat2[mat2==0|mat2<0] <- NA
-
-
-## ### setting color
-## mybreak <- seq(0, 1, length.out=20)
-## col0 <- brewer.pal(n=9,name="Reds")
-## mycol <- colorRamp2(mybreak, colorRampPalette(col0)(20))
-
-
-## ## mycol <- colorRamp2(seq(0, 1, length.out=12), colorRampPalette(c("white", "red"))(12))
-
-## p <- Heatmap(mat2, name="SCC", na_col="grey90", 
-##     col=mycol, cluster_rows=F, cluster_columns=F,
-##     row_names_gp=gpar(fontsize=10), column_names_gp=gpar(fontsize=10), ##column_names_rot=-45,
-##     heatmap_legend_param=list(at=seq(0, 1, by=0.25),
-##         grid_width=grid::unit(0.38, "cm"), legend_height=grid::unit(4, "cm"),
-##         title_gp=gpar(fontsize=8), labels_gp=gpar(fontsize=8)),
-##     cell_fun=function(j, i, x, y, width, height, fill){
-##        grid.text(round(mat[i,j],digits=3), x, y, gp=gpar(fontsize=9))
-##     })
-
-## figfn <- paste(outdir2, "Figure4.0_corr3_zscore.heatmap.png", sep="")
-## png(figfn, height=500, width=520, res=120)
-## print(p)
-## dev.off()
-
-
-
-
-
-#####################################################
-### TF activity and TF-regulated gene expression ####
-#####################################################
-
-## rm(list=ls())
-
-## outdir2 <- "./4_motif_plots.outs/2_all_response/"
-
-## ###
-## fn <- paste(outdir2, "1.0_cl6_gene_reorder.xlsx", sep="")
-## df_cl <- read.xlsx(fn)
-## resp_motif <- unique(df_cl$gene)
-
-## ##
-## fn <- paste(outdir2, "4_LFC.TF_LFC.DE.rds", sep="")
-## res <- read_rds(fn)
-
-## x2 <- res%>%filter(comb=="4_Bcell_caffeine")%>%dplyr::select(motif_name, x1=beta_x, x2=beta_rna) 
-## df2 <- 
-
-## res2 <- res%>%group_by(comb, motif_name)%>%slice_max(order_by=abs(zscore_x), n=1)%>%as.data.frame()
- 
-## dfmat <- res2%>%pivot_wider(id_cols=motif_name, names_from=comb, values_from=zscore_rna, values_fill=NA)
-## mat <- dfmat%>%column_to_rownames(var="motif_name")%>%as.matrix()
-
-
-## mat <- mat[resp_motif,]
-## iSel <- rowSums(is.na(mat))==0
-## mat <- mat[iSel,]
-
-## ###
-## ### get colnames and re-order by treats
-## rn <- colnames(mat)
-## x <- str_split(rn, "_", simplify=T)
-## cvt <- data.frame(comb=rn, MCls=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
-## cvt <- cvt%>%arrange(contrast)
-
-## mat2 <- mat[,cvt$comb]
-
-
-## ###
-## ### color for heatmap value
-## y <- as.vector(mat2)
-## ## y0 <- y[abs(y)<2]
-## quantile(abs(y), probs=0.99)
-
-## mybreak <- c(min(y,na.rm=T), seq(-6, 6, length.out=98), max(y,na.rm=T))
-
-## ## quantile(abs(y), probs=c(0.9,0.95,0.99))
-## ## range(y)
-
-## mycol <- colorRamp2(mybreak, colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(100))
-
- 
-## ###
-## ### annotation columns
-## col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
-##   "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
-##    "6_Monocyte"="#984ea3", "7_dnT"="black")
-## col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
-##        "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
-
-
-## x <- str_split(colnames(mat2), "_", simplify=T)
-## df_col <- data.frame(celltype=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
-## col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1, contrast=col2),
-##     annotation_name_gp=gpar(fontsize=10),
-##     annotation_legend_param=list(
-##   celltype=list(title_gp=gpar(fontsize=9), labels_gp=gpar(fontsize=9), title="celltype",
-##                 grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm")),
-##   contrast=list(title_gp=gpar(fontsize=9), labels_gp=gpar(fontsize=9), title="contrast",
-##                 grid_width=unit(0.45, "cm"), grid_height=unit(0.5, "cm"))))
-
-
-
-
-## ###
-## ### row annotation
-## df_cl2 <- df_cl%>%filter(gene%in%rownames(mat))
-## identical(df_cl2$gene, rownames(mat))
-
-
-## ## df_row <- df_cl2%>%dplyr::select(cluster)
-## ## row_ha <- rowAnnotation(cl=anno_block(gp=gpar(fill=2:7), labels=c("CL2", "CL1", "CL3", "CL4", "CL5", "CL6")))
- 
-## ## table(DF$cluster)
-## ##mat[is.na(mat)] <- 0
-## p0 <- Heatmap(mat2, col=mycol, 
-##    cluster_rows=T, 
-##    cluster_columns=F,
-##    ## row_split=c(rep("1",32), rep("2", 8), rep("3", 21), rep("4", 14), rep("5",12), rep("6", 20)),
-##    ##row_split=c(rep("1", 9), rep("2", 17), rep("3", 38)), 
-##    show_row_names=T, row_names_gp=gpar(fontsize=5),
-##    show_column_names=T, column_names_gp=gpar(fontsize=7),
-##    show_row_dend=F, show_column_dend=F,
-##    row_title=NULL,
-##    ##column_names_rot=-45,   
-##    top_annotation=col_ha,
-##    ## left_annotation=row_ha,
-##    heatmap_legend_param=list(title=bquote(~italic(Z)~"-score"),
-##       title_gp=gpar(fontsize=9),
-##       at=seq(-9, 9, by=3), 
-##       labels_gp=gpar(fontsize=9),
-##       grid_width=grid::unit(0.45, "cm"),
-##       legend_height=grid::unit(7.8, "cm")))
-
-## ###
-## figfn <- paste(outdir2, "Figure4.1_TF-regulated-gene.heatmap.png", sep="")
-## png(figfn, width=1000, height=1050,res=120)
-## set.seed(0)
-## p0 <- draw(p0)
-## dev.off()
-
-
- 
 
 #########################################################################################################
 ### generate TF-regulated-genes data as a matrix form used for plots and secondary analysis 
 #########################################################################################################
 
+
+###
+### TF-regulated genes new analysis
+### Last motified By JW, Feb-07-2024
 
 ### ./4_motif_plots.outs/TF-regulated-genes2/
 ### 0_TF_peaks.R generate TF-peaks
@@ -304,16 +65,15 @@ res <- read_rds(fn)%>%
     mutate(comb=paste(MCls, contrast, sep="_"), zscore=beta/stderr,
                       is_sig=ifelse(qval<0.1, 1, 0))
 
-### response motifs
+###
 fn <- "./4_motif_plots.outs/response_motif_correct/2.2_response_motif_th0.1.txt"
-resp_motif <- read.table(fn, header=TRUE)$motif_name%>%unique()
-
-
-### top 10
-res2 <- res%>%filter(motif_name%in%resp_motif)
-top10 <- res2%>%group_by(comb)%>%slice_max(order_by=abs(zscore), n=10)%>%pull(motif_name)%>%unique()
-
+resp_motif <- read.table(fn, header=T)%>%pull(motif_name)%>%unique()
  
+### select motifs
+fn <- "./4_motif_plots.outs/2_all_response/1.0_cl6_gene_reorder.xlsx"
+motifSel <- read.xlsx(fn)%>%pull(gene)%>%unique()
+
+motifSel <- intersect(resp_motif, motifSel)
 
 
 ###
@@ -343,13 +103,13 @@ identical(rownames(x1), rownames(x2))
 ### rename x1
 comb2 <- paste0("1_", colnames(x1), sep="")
 colnames(x1) <- comb2
-x1 <- x1[top10,]
+x1 <- x1[motifSel,]
 
 ###
 ### rename x2
 comb2 <- paste0("2_", colnames(x2), sep="")
 colnames(x2) <- comb2
-x2 <- x2[top10,]
+x2 <- x2[motifSel,]
 
 identical(rownames(x1), rownames(x2))
  
@@ -378,7 +138,7 @@ write_rds(mat2, file=opfn)
 ######################################################################################
 ### correlation values between TF activity and TF-regulated-genes 
 ######################################################################################
-
+ 
 rm(list=ls())
 outdir2 <- "./4_motif_plots.outs/TF-regulated-genes2/"
 
@@ -559,78 +319,6 @@ dev.off()
 
 
 
-###
-### old analysis 
-
-## rm(list=ls())
-## outdir2 <- "./4_motif_plots.outs/2_all_response/"
-
-## ###
-## fn <- paste(outdir2, "4_LFC.TF_LFC.DE.rds", sep="")
-## x <- read_rds(fn)
-## x <- x%>%group_by(comb, motif_name)%>%slice_max(order_by=abs(zscore_x), n=1)%>%as.data.frame()
-
-## mat2 <- x%>%pivot_wider(id_cols=motif_name, names_from=comb, values_from=zscore_rna, values_fill=NA)%>%
-##     column_to_rownames(var="motif_name")%>%as.matrix()
-## motif <- rownames(mat2)
-## idSel <- rowSums(is.na(mat2))==0
-## motifSel <- motif[idSel]    
-
-
-## x2 <- x%>%dplyr::filter(motif_name%in%motifSel)
-## res <- x2%>%dplyr::select(comb, MCls, contrast, motif_name, x=zscore_x, y=zscore_rna)
-
-
-## ###
-## ### correlation mat
-## dfcorr <- res%>%group_by(MCls, contrast)%>%
-##     summarize(rr=cor(x, y, method="spearman"), .groups="drop")%>%as.data.frame()
-## dfmat <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
-
-## mat <- dfmat%>%column_to_rownames(var="MCls")%>%as.matrix()
-
-
-
-## ###
-## ### significance
-## sig <- res%>%group_by(MCls, contrast)%>%
-##     summarize(pval=cor.test(x, y, method="spearman")$p.value, .groups="drop")%>%as.data.frame()
-## sig <- sig%>%mutate(FDR=p.adjust(pval, method="BH"), is_sig=ifelse(FDR<0.05, 1, 0))
-
-## sig_mat <- sig%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=is_sig)%>%as.data.frame() 
-## sig_mat <- sig_mat%>%column_to_rownames(var="MCls")%>%as.matrix()
-
-
-## mat2 <- mat*sig_mat
-## mat2[mat2==0] <- NA
-
-
-## ### setting color
-## ## mybreak <- seq(0, 1, length.out=20)
-## ## col0 <- brewer.pal(n=9,name="Reds")
-## ## mycol <- colorRamp2(mybreak, colorRampPalette(col0)(20))
-
-## mycol <- colorRamp2(seq(-1, 1, length.out=50), colorRampPalette(rev(brewer.pal(n=7, name="RdBu")))(50))
-
-
-## ## mycol <- colorRamp2(seq(0, 1, length.out=12), colorRampPalette(c("white", "red"))(12))
-
-## p <- Heatmap(mat2, name="SCC", na_col="grey90", 
-##     col=mycol, cluster_rows=F, cluster_columns=F,
-##     row_names_gp=gpar(fontsize=10), column_names_gp=gpar(fontsize=10), ##column_names_rot=-45,
-##     heatmap_legend_param=list(at=seq(-1, 1, by=0.5),
-##         grid_width=grid::unit(0.38, "cm"), legend_height=grid::unit(4, "cm"),
-##         title_gp=gpar(fontsize=8), labels_gp=gpar(fontsize=8)),
-##     cell_fun=function(j, i, x, y, width, height, fill){
-##        grid.text(round(mat[i,j],digits=3), x, y, gp=gpar(fontsize=9))
-##     })
-
-## figfn <- paste(outdir2, "Figure4.0_corr_zscore.heatmap.png", sep="")
-## png(figfn, height=500, width=520, res=120)
-## print(p)
-## dev.off()
-
-
 
 
 
@@ -695,7 +383,7 @@ colnames(mat2) <- comb
 ### main plots
 p2 <- Heatmap(mat2, col=mycol,
    cluster_rows=T, cluster_columns=F, row_km=6, column_split=rep(c("TF activity", "TF regulated genes"), each=48),
-   show_row_names=T, row_names_gp=gpar(fontsize=5),
+   show_row_names=T, row_names_gp=gpar(fontsize=7),
    show_column_names=T, column_names_gp=gpar(fontsize=8),
    show_row_dend=T, row_dend_width=grid::unit(2, "cm"),
    show_column_dend=F,
@@ -775,59 +463,6 @@ figfn <- paste(outdir2, "summary_results/Figure1.2_corr.box.png", sep="")
 ggsave(figfn, p, width=520, height=350, units="px", dpi=120)
 
 
-
-###
-### old
-## rm(list=ls())
-
-## outdir2 <- "./4_motif_plots.outs/2_all_response/"
-## if ( !file.exists(outdir2) ) dir.create(outdir2, showWarnings=F, recursive=T)
-
-## fn <- paste(outdir2, "4_TF_activity_TF-regulated-gene.mat.rds", sep="")
-## x <- read_rds(fn)
-## x1 <- x[,1:48]
-## x2 <- x[,49:96]
-## motifs <- rownames(x)
-
-## dfcorr <- map_dfr(motifs, function(ii){
-##     ##
-##     x1 <- as.numeric(x[ii, 1:48])
-##     x2 <- as.numeric(x[ii, 49:96])
-##     df0 <- data.frame(motif_name=ii, rr_zscore=cor(x1, x2, method="spearman"))
-##     df0
-## })    
-
-## fn <- paste(outdir2, "4_comb2_cl6_motif_reorder.xlsx", sep="")
-## df_cl <- read.xlsx(fn)%>%rename("motif_name"="gene")
-
-## dfcomb <- df_cl%>%left_join(dfcorr, by="motif_name")
-## opfn <- paste(outdir2, "4.2_corr_zscore.xlsx", sep="")
-## write.xlsx(dfcomb, file=opfn)
-
-
-## ####
-## ####
- 
-## rm(list=ls())
-
-## outdir2 <- "./4_motif_plots.outs/2_all_response/"
-## fn <- paste(outdir2, "4.2_corr_zscore.xlsx", sep="") 
-## df2 <- read.xlsx(fn)%>%mutate(cluster2=paste("CL", cluster, sep=""))
-
-
-## p <- ggplot(df2, aes(x=cluster2, y=rr_zscore, color=cluster2))+
-##    geom_boxplot(outlier.shape=NA, lwd=0.25)+
-##    geom_jitter(width=0.2, size=0.5)+ 
-##    stat_summary(fun=median, geom="point", shape=23, size=1.8, stroke=0.9)+ylim(-1,1)+
-##    ggtitle("SCC of z-score between TFs activity and TF-regulated genes")+  
-##    theme_bw()+
-##    theme(legend.position="none",
-##          axis.title=element_blank(),
-##          axis.text=element_text(size=10),
-##          plot.title=element_text(size=9, hjust=0.5))
- 
-## figfn <- paste(outdir2, "Figure4.2_corr.box.png", sep="")
-## ggsave(figfn, p, width=520, height=350, units="px", dpi=120)s
 
 
 
@@ -1384,351 +1019,351 @@ ggsave(figfn, plot=p2, width=780, height=720, units="px", dpi=120)
 ###################
 
  
-rm(list=ls())
-outdir2 <- "./4_motif_plots.outs/2_all_response/cluster_CCA/"
-if ( !file.exists(outdir2) ) dir.create(outdir2, showWarnings=F, recursive=F)
+## rm(list=ls())
+## outdir2 <- "./4_motif_plots.outs/2_all_response/cluster_CCA/"
+## if ( !file.exists(outdir2) ) dir.create(outdir2, showWarnings=F, recursive=F)
 
 
 
-### get covariance-variance matrix
-getVar <- function(X, Y, df_cl){
+## ### get covariance-variance matrix
+## getVar <- function(X, Y, df_cl){
     
-   ### clusters    
-   cls <- unique(df_cl$cluster)
-   mm <- sum(table(df_cl$cluster)^2)
+##    ### clusters    
+##    cls <- unique(df_cl$cluster)
+##    mm <- sum(table(df_cl$cluster)^2)
     
-   ## variance, var_xx
-   var_xx <- lapply(cls, function(i){
-       ##
-       rnSel <- df_cl%>%dplyr::filter(cluster==i)%>%pull(gene)
-       n0 <- length(rnSel)
-       x <- X[rnSel,]
-       x <- scale(x)
-       xx <- crossprod(x)*n0
-       xx
-   })
-   var_xx <- Reduce("+", var_xx)
-   var_xx <- var_xx/mm 
+##    ## variance, var_xx
+##    var_xx <- lapply(cls, function(i){
+##        ##
+##        rnSel <- df_cl%>%dplyr::filter(cluster==i)%>%pull(gene)
+##        n0 <- length(rnSel)
+##        x <- X[rnSel,]
+##        x <- scale(x)
+##        xx <- crossprod(x)*n0
+##        xx
+##    })
+##    var_xx <- Reduce("+", var_xx)
+##    var_xx <- var_xx/mm 
 
-   ## variance, var_yy
-   var_yy <- lapply(cls, function(i){
-      ##
-      rnSel <- df_cl%>%filter(cluster==i)%>%pull(gene)
-      n0 <- length(rnSel)
-      y <- Y[rnSel,]
-      y <- scale(y) 
-      yy <- crossprod(y)*n0
-      yy
-   })
-   var_yy <- Reduce("+", var_yy)
-   var_yy <- var_yy/mm
+##    ## variance, var_yy
+##    var_yy <- lapply(cls, function(i){
+##       ##
+##       rnSel <- df_cl%>%filter(cluster==i)%>%pull(gene)
+##       n0 <- length(rnSel)
+##       y <- Y[rnSel,]
+##       y <- scale(y) 
+##       yy <- crossprod(y)*n0
+##       yy
+##    })
+##    var_yy <- Reduce("+", var_yy)
+##    var_yy <- var_yy/mm
 
-   ### 
-   ### covariance, var_xy
-   var_xy <- lapply(cls, function(i){
-      ###
-      rnSel <- df_cl%>%filter(cluster==i)%>%pull(gene)
-      n0 <- length(rnSel)
-      x <- X[rnSel,]
-      x <- scale(x) 
-      y <- Y[rnSel,]
-      y <- scale(y) 
-      np <- ncol(x) 
-      ###
+##    ### 
+##    ### covariance, var_xy
+##    var_xy <- lapply(cls, function(i){
+##       ###
+##       rnSel <- df_cl%>%filter(cluster==i)%>%pull(gene)
+##       n0 <- length(rnSel)
+##       x <- X[rnSel,]
+##       x <- scale(x) 
+##       y <- Y[rnSel,]
+##       y <- scale(y) 
+##       np <- ncol(x) 
+##       ###
        
-      xy <- matrix(0, np, np)   
-      for (i in nrow(x)){
-         ##
-         for ( j in nrow(y)){
-         ##
-           x0 <- matrix(as.numeric(x[i,]), np, 1)
-           y0 <- matrix(as.numeric(y[j,]), 1, np)
-           xy <- xy+x0%*%y0
-         }    
-      }       
-      xy
-    })
-    var_xy <- Reduce("+", var_xy)
-    var_xy <- var_xy/mm
+##       xy <- matrix(0, np, np)   
+##       for (i in nrow(x)){
+##          ##
+##          for ( j in nrow(y)){
+##          ##
+##            x0 <- matrix(as.numeric(x[i,]), np, 1)
+##            y0 <- matrix(as.numeric(y[j,]), 1, np)
+##            xy <- xy+x0%*%y0
+##          }    
+##       }       
+##       xy
+##     })
+##     var_xy <- Reduce("+", var_xy)
+##     var_xy <- var_xy/mm
 
-    ### return results
-    results <- list(var_xx=var_xx, var_yy=var_yy, var_xy=var_xy)
-    results         
-}    
+##     ### return results
+##     results <- list(var_xx=var_xx, var_yy=var_yy, var_xy=var_xy)
+##     results         
+## }    
 
 
-###
-###
-getCCA <- function(Var_list){
-   ###
-   xx <- Var_list$var_xx
-   yy <- Var_list$var_yy
-   xy <- Var_list$var_xy
+## ###
+## ###
+## getCCA <- function(Var_list){
+##    ###
+##    xx <- Var_list$var_xx
+##    yy <- Var_list$var_yy
+##    xy <- Var_list$var_xy
     
-   ### matrix
-   sx <- sqrtm(solve(xx))
-   sy <- sqrtm(solve(yy))
-   T <- sx%*%xy%*%sy
-   M <- tcrossprod(T) 
+##    ### matrix
+##    sx <- sqrtm(solve(xx))
+##    sy <- sqrtm(solve(yy))
+##    T <- sx%*%xy%*%sy
+##    M <- tcrossprod(T) 
 
-   results <- eigen(M)  
-   uu <- results$vectors
-   lam <- results$values
-   ii <- lam>0  
-   ### weights for x
-   wa <- sx%*%uu[,ii]
+##    results <- eigen(M)  
+##    uu <- results$vectors
+##    lam <- results$values
+##    ii <- lam>0  
+##    ### weights for x
+##    wa <- sx%*%uu[,ii]
 
-   ### weights for y 
-   wb <- sy%*%sy%*%t(xy)%*%wa
-   lam_inv <- 1/sqrt(lam[ii])
-   wb <- sweep(wb, 2, lam_inv, "*")
+##    ### weights for y 
+##    wb <- sy%*%sy%*%t(xy)%*%wa
+##    lam_inv <- 1/sqrt(lam[ii])
+##    wb <- sweep(wb, 2, lam_inv, "*")
     
-   ###
-   results$wa <- wa
-   results$wb <- wb
-   results
-}    
-    
-
-
-
-
-### cluster infor
-fn <- "./4_motif_plots.outs/2_all_response/4_comb2_cl6_motif_reorder.xlsx"
-df_cl <- read.xlsx(fn)
-## df_cl2 <- df_cl%>%filter(gene%in%rnSel)
-
-
-
-###
-fn <- "./4_motif_plots.outs/2_all_response/4_TF_activity_TF-regulated-gene.mat.rds"
-x <- read_rds(fn)
-rnSel <- rownames(x)
-
-comb2 <- gsub("^[12]_", "", colnames(x))
-colnames(x) <- comb2
-
-
-
-
-###
-x1 <- x[,1:48]
-## x1 <- scale(x1)
-
-###
-x2 <- x[,49:96]
-## x2 <- scale(x2)
-
-
-### cca object
-Var <- getVar(x1, x2, df_cl)
-cca <- getCCA(Var)
-## opfn <- paste(outdir2, "4_cca.rds", sep="")
-## write_rds(cca, file=opfn)
-
-wa <- cca$wa
-xscore <- x1%*%wa
-##
-wb <- cca$wb
-yscore <- x2%*%wb
-
-
-
-
-### custom function 
-my_box <- function(data, mapping,...){
-   ##
-   p <- ggplot(data=data, mapping=mapping)+
-       geom_boxplot(outlier.shape=1, lwd=0.25)+coord_flip()
-   ## geom_jitter(data=data, mapping=mapping, width=0.2, size=0.5, shape=23)+coord_flip()## + 
-   ## stat_summary(fun=median, geom="point", shape=23, size=1.8, stroke=0.9) ###ylim(-1,1)+
-   p
-}    
-
-
-
-###
-### plot data for motif
-
-plotDF <- xscore[,1:5]%>%as.data.frame()%>%rownames_to_column(var="gene")%>%
-    inner_join(df_cl, by="gene")%>%
-    mutate(cluster2=paste("CL", cluster, sep=""))
-
-
-###
-###
-p0 <- ggpairs(plotDF, columns=2:6, aes(color=cluster2),
-              upper=list(continuous=wrap("cor", size=2)),
-              diag=list(continuous=my_box),
-              lower=list(continuous=wrap("points", size=0.8)))+
-    theme_bw()+
-    theme(strip.text=element_text(size=12))
+##    ###
+##    results$wa <- wa
+##    results$wb <- wb
+##    results
+## }    
     
 
-figfn <- paste(outdir2, "Figure4.4_motif_score.pair.png", sep="")
-ggsave(figfn, plot=p0, width=800, height=720, units="px", dpi=120)
 
 
 
-###
-### plot data for TF-regulated genes
-
-plotDF2 <- yscore[,1:5]%>%as.data.frame()%>%rownames_to_column(var="gene")%>%
-    inner_join(df_cl, by="gene")%>%
-    mutate(cluster2=paste("CL", cluster, sep=""))
+## ### cluster infor
+## fn <- "./4_motif_plots.outs/2_all_response/4_comb2_cl6_motif_reorder.xlsx"
+## df_cl <- read.xlsx(fn)
+## ## df_cl2 <- df_cl%>%filter(gene%in%rnSel)
 
 
-###
-###
-p2 <- ggpairs(plotDF2, columns=2:6, aes(color=cluster2),
-              upper=list(continuous=wrap("cor", size=2)),
-              diag=list(continuous=my_box),
-              lower=list(continuous=wrap("points", size=0.8)))+
-    theme_bw()+
-    theme(strip.text=element_text(size=12))
+
+## ###
+## fn <- "./4_motif_plots.outs/2_all_response/4_TF_activity_TF-regulated-gene.mat.rds"
+## x <- read_rds(fn)
+## rnSel <- rownames(x)
+
+## comb2 <- gsub("^[12]_", "", colnames(x))
+## colnames(x) <- comb2
+
+
+
+
+## ###
+## x1 <- x[,1:48]
+## ## x1 <- scale(x1)
+
+## ###
+## x2 <- x[,49:96]
+## ## x2 <- scale(x2)
+
+
+## ### cca object
+## Var <- getVar(x1, x2, df_cl)
+## cca <- getCCA(Var)
+## ## opfn <- paste(outdir2, "4_cca.rds", sep="")
+## ## write_rds(cca, file=opfn)
+
+## wa <- cca$wa
+## xscore <- x1%*%wa
+## ##
+## wb <- cca$wb
+## yscore <- x2%*%wb
+
+
+
+
+## ### custom function 
+## my_box <- function(data, mapping,...){
+##    ##
+##    p <- ggplot(data=data, mapping=mapping)+
+##        geom_boxplot(outlier.shape=1, lwd=0.25)+coord_flip()
+##    ## geom_jitter(data=data, mapping=mapping, width=0.2, size=0.5, shape=23)+coord_flip()## + 
+##    ## stat_summary(fun=median, geom="point", shape=23, size=1.8, stroke=0.9) ###ylim(-1,1)+
+##    p
+## }    
+
+
+
+## ###
+## ### plot data for motif
+
+## plotDF <- xscore[,1:5]%>%as.data.frame()%>%rownames_to_column(var="gene")%>%
+##     inner_join(df_cl, by="gene")%>%
+##     mutate(cluster2=paste("CL", cluster, sep=""))
+
+
+## ###
+## ###
+## p0 <- ggpairs(plotDF, columns=2:6, aes(color=cluster2),
+##               upper=list(continuous=wrap("cor", size=2)),
+##               diag=list(continuous=my_box),
+##               lower=list(continuous=wrap("points", size=0.8)))+
+##     theme_bw()+
+##     theme(strip.text=element_text(size=12))
     
 
-figfn <- paste(outdir2, "Figure4.4_TF-regulated-gene_score.pair.png", sep="")
-ggsave(figfn, plot=p2, width=780, height=720, units="px", dpi=120)
+## figfn <- paste(outdir2, "Figure4.4_motif_score.pair.png", sep="")
+## ggsave(figfn, plot=p0, width=800, height=720, units="px", dpi=120)
 
 
 
-########################################
-### correlation of score and x and y ###
-########################################
+## ###
+## ### plot data for TF-regulated genes
+
+## plotDF2 <- yscore[,1:5]%>%as.data.frame()%>%rownames_to_column(var="gene")%>%
+##     inner_join(df_cl, by="gene")%>%
+##     mutate(cluster2=paste("CL", cluster, sep=""))
 
 
-### custom function 
-my_box <- function(data, mapping,...){
-   ##
-   p <- ggplot(data=data, mapping=mapping)+
-       geom_boxplot(outlier.shape=1, lwd=0.25)+coord_flip()
-   ## geom_jitter(data=data, mapping=mapping, width=0.2, size=0.5, shape=23)+coord_flip()## + 
-   ## stat_summary(fun=median, geom="point", shape=23, size=1.8, stroke=0.9) ###ylim(-1,1)+
-   p
-}
-
-
-m1 <- as.data.frame(t(cor(xscore, x1)))
-m2 <- as.data.frame(t(cor(yscore, x2)))
-
-ns <- ncol(m1)
-
-
-colnames(m1) <- paste("S", 1:ns, sep="")
-colnames(m2) <- paste("S", 1:ns, sep="")
-
-
-col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
-  "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
-   "6_Monocyte"="#984ea3", "7_dnT"="black")
-col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
-       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
-
-
-###
-### plot data for motif
-
-plotDF <- m1[,1:5]%>%rownames_to_column(var="comb")
-x <- str_split(plotDF$comb, "_", simplify=TRUE)
-plotDF <- plotDF%>%mutate(MCls=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
-
-
-###
-###
-p0 <- ggpairs(plotDF, columns=2:6, aes(color=contrast),
-              upper=list(continuous=wrap("cor", size=2)),
-              diag=list(continuous=my_box),
-              lower=list(continuous=wrap("points", size=0.8)))+
-    scale_color_manual(values=col2)+
-    theme_bw()+
-    theme(strip.text=element_text(size=12))
+## ###
+## ###
+## p2 <- ggpairs(plotDF2, columns=2:6, aes(color=cluster2),
+##               upper=list(continuous=wrap("cor", size=2)),
+##               diag=list(continuous=my_box),
+##               lower=list(continuous=wrap("points", size=0.8)))+
+##     theme_bw()+
+##     theme(strip.text=element_text(size=12))
     
 
-figfn <- paste(outdir2, "Figure4.7_motif_loading.pair.png", sep="")
-ggsave(figfn, plot=p0, width=800, height=720, units="px", dpi=120)
+## figfn <- paste(outdir2, "Figure4.4_TF-regulated-gene_score.pair.png", sep="")
+## ggsave(figfn, plot=p2, width=780, height=720, units="px", dpi=120)
 
 
 
-###
-### plot data for TF-regulated genes
-
-plotDF2 <- m2[,1:5]%>%as.data.frame()%>%rownames_to_column(var="comb")
-x <- str_split(plotDF2$comb, "_", simplify=TRUE)
-plotDF2 <- plotDF2%>%mutate(MCls=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
+## ########################################
+## ### correlation of score and x and y ###
+## ########################################
 
 
-###
-###
-p2 <- ggpairs(plotDF2, columns=2:6, aes(color=contrast),
-              upper=list(continuous=wrap("cor", size=2)),
-              diag=list(continuous=my_box),
-              lower=list(continuous=wrap("points", size=0.8)))+
-    scale_color_manual(values=col2)+
-    theme_bw()+
-    theme(strip.text=element_text(size=12))
+## ### custom function 
+## my_box <- function(data, mapping,...){
+##    ##
+##    p <- ggplot(data=data, mapping=mapping)+
+##        geom_boxplot(outlier.shape=1, lwd=0.25)+coord_flip()
+##    ## geom_jitter(data=data, mapping=mapping, width=0.2, size=0.5, shape=23)+coord_flip()## + 
+##    ## stat_summary(fun=median, geom="point", shape=23, size=1.8, stroke=0.9) ###ylim(-1,1)+
+##    p
+## }
+
+
+## m1 <- as.data.frame(t(cor(xscore, x1)))
+## m2 <- as.data.frame(t(cor(yscore, x2)))
+
+## ns <- ncol(m1)
+
+
+## colnames(m1) <- paste("S", 1:ns, sep="")
+## colnames(m2) <- paste("S", 1:ns, sep="")
+
+
+## col1 <- c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56",
+##   "3_TEM"="blue", "4_Bcell"="#4daf4a", "5_CD8Naive"="green",
+##    "6_Monocyte"="#984ea3", "7_dnT"="black")
+## col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+##        "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3")
+
+
+## ###
+## ### plot data for motif
+
+## plotDF <- m1[,1:5]%>%rownames_to_column(var="comb")
+## x <- str_split(plotDF$comb, "_", simplify=TRUE)
+## plotDF <- plotDF%>%mutate(MCls=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
+
+
+## ###
+## ###
+## p0 <- ggpairs(plotDF, columns=2:6, aes(color=contrast),
+##               upper=list(continuous=wrap("cor", size=2)),
+##               diag=list(continuous=my_box),
+##               lower=list(continuous=wrap("points", size=0.8)))+
+##     scale_color_manual(values=col2)+
+##     theme_bw()+
+##     theme(strip.text=element_text(size=12))
     
 
-figfn <- paste(outdir2, "Figure4.7_TF-regulated-gene_loading.pair.png", sep="")
-ggsave(figfn, plot=p2, width=780, height=720, units="px", dpi=120)
+## figfn <- paste(outdir2, "Figure4.7_motif_loading.pair.png", sep="")
+## ggsave(figfn, plot=p0, width=800, height=720, units="px", dpi=120)
+
+
+
+## ###
+## ### plot data for TF-regulated genes
+
+## plotDF2 <- m2[,1:5]%>%as.data.frame()%>%rownames_to_column(var="comb")
+## x <- str_split(plotDF2$comb, "_", simplify=TRUE)
+## plotDF2 <- plotDF2%>%mutate(MCls=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
+
+
+## ###
+## ###
+## p2 <- ggpairs(plotDF2, columns=2:6, aes(color=contrast),
+##               upper=list(continuous=wrap("cor", size=2)),
+##               diag=list(continuous=my_box),
+##               lower=list(continuous=wrap("points", size=0.8)))+
+##     scale_color_manual(values=col2)+
+##     theme_bw()+
+##     theme(strip.text=element_text(size=12))
+    
+
+## figfn <- paste(outdir2, "Figure4.7_TF-regulated-gene_loading.pair.png", sep="")
+## ggsave(figfn, plot=p2, width=780, height=720, units="px", dpi=120)
 
 
 
 
-########################################################################
-### compare the results between R function cc and my function getCCA ###
-########################################################################
+## ########################################################################
+## ### compare the results between R function cc and my function getCCA ###
+## ########################################################################
 
 
 
-###
-### cca analysis
-cc0 <- cc(x1, x2)
-cc2 <- comput(x1, x2, cc0)
+## ###
+## ### cca analysis
+## cc0 <- cc(x1, x2)
+## cc2 <- comput(x1, x2, cc0)
 
 
 
 
 
 
-var_xx <- var(x1,x1)
-var_yy <- var(x2, x2)
-var_xy <- var(x1, x2)
+## var_xx <- var(x1,x1)
+## var_yy <- var(x2, x2)
+## var_xy <- var(x1, x2)
 
-Var_list <- list(var_xx=var_xx, var_yy=var_yy, var_xy=var_xy)
-cc_mine <- getCCA(Var_list)
+## Var_list <- list(var_xx=var_xx, var_yy=var_yy, var_xy=var_xy)
+## cc_mine <- getCCA(Var_list)
 
-wa <- cc_mine$wa
-xscore <- x1%*%wa
+## wa <- cc_mine$wa
+## xscore <- x1%*%wa
 
-##
-wb <- cc_mine$wb
-yscore <- x2%*%wb
-
-
-###
-###
-xscore_0 <- cc2$xscores
-plotDF <- data.frame(x=xscore_0[,1], y=xscore[,1])
-p0 <- ggplot(plotDF, aes(x=x, y=y))+
-   geom_point(size=1.5, shape=1, color="#dd1c77")+
-   xlab("xscore of cc fun")+ylab("xscore of my fun")+
-   theme_bw()
-
-figfn <- paste(outdir2, "Figure888_xscore.png", sep="")
-ggsave(figfn, p0, width=320, height=320, units="px", dpi=120)
+## ##
+## wb <- cc_mine$wb
+## yscore <- x2%*%wb
 
 
-### compare
-yscore_0 <- cc2$yscore
-plotDF2 <- data.frame(x=yscore_0[,1], y=yscore[,1])
-p2 <- ggplot(plotDF, aes(x=x, y=y))+
-   geom_point(size=1.5, shape=1, color="#dd1c77")+
-   xlab("yscore of cc fun")+ylab("yscore of my fun")+
-   theme_bw()
+## ###
+## ###
+## xscore_0 <- cc2$xscores
+## plotDF <- data.frame(x=xscore_0[,1], y=xscore[,1])
+## p0 <- ggplot(plotDF, aes(x=x, y=y))+
+##    geom_point(size=1.5, shape=1, color="#dd1c77")+
+##    xlab("xscore of cc fun")+ylab("xscore of my fun")+
+##    theme_bw()
 
-figfn <- paste(outdir2, "Figure888_yscore.png", sep="")
-ggsave(figfn, p2, width=320, height=320, units="px", dpi=120)
+## figfn <- paste(outdir2, "Figure888_xscore.png", sep="")
+## ggsave(figfn, p0, width=320, height=320, units="px", dpi=120)
+
+
+## ### compare
+## yscore_0 <- cc2$yscore
+## plotDF2 <- data.frame(x=yscore_0[,1], y=yscore[,1])
+## p2 <- ggplot(plotDF, aes(x=x, y=y))+
+##    geom_point(size=1.5, shape=1, color="#dd1c77")+
+##    xlab("yscore of cc fun")+ylab("yscore of my fun")+
+##    theme_bw()
+
+## figfn <- paste(outdir2, "Figure888_yscore.png", sep="")
+## ggsave(figfn, p2, width=320, height=320, units="px", dpi=120)
 
    
 
