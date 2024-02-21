@@ -40,6 +40,6 @@
 - Interaction molecular QTL mapping discovers cellular and environmental modifiers of genetic regulatory effects, https://www.sciencedirect.com/science/article/pii/S0002929723004317?dgcid=author
 - Shared genetic effects on chromatin and gene expression indicate a role for enhancer priming in immune response, https://www.nature.com/articles/s41588-018-0046-7
 - Common Genetic Variants Modulate Pathogen-Sensing Responses in Human Dendritic Cells, https://www.science.org/doi/10.1126/science.1246980
-
+- Smoking changes adaptive immunity with persistent effects, https://www.nature.com/articles/s41586-023-06968-8
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
