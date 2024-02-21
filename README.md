@@ -9,5 +9,3 @@ We performed a series of  analyses in the following folders,
 
 We used "BH" from p.adjust to calculate FDR as default approach.    
 In default, we used all the genes passing filtering conditions to calculate FDR and after that we extracte protein coding genes. 
-## Try
-### Try 
