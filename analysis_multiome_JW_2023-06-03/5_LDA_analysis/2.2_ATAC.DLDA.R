@@ -10,8 +10,6 @@ library(SeuratData)
 library(Signac)
 library(SeuratWrappers)
 library(SeuratObject)
-library(annotables)
-
 
 rm(list=ls())
 
@@ -19,30 +17,16 @@ outdir <- "./2_DLDA.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
+#### DARs
 
-
-
-
-
-#### DEGs
-fn <- "../sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
+fn <- "../sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
 res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
 
-###
-### select gene
-gene0 <- unique(res$gene)
-gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
-gene2 <- intersect(gene0, gene1)
-
-
-geneSel <- res%>%
-    dplyr::filter(p.adjusted<0.1, abs(estimate)>0.5, gene%in%gene2)%>%pull(gene)%>%unique()
-
+geneSel <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
 
 res2 <- res%>%filter(gene%in%geneSel)%>%
     mutate(is_sig=ifelse(abs(estimate)>0.5&p.adjusted<0.1, 1, 0))
 
-###resDG <- resDG%>%filter(gene%in%DEG)
 
 
 contrast.list <- list("caffeine"=c("caffeine", "control"),
@@ -55,24 +39,25 @@ contrast.list <- list("caffeine"=c("caffeine", "control"),
 
 
 
-
 ##################################
 ### calculate DLDA
 ##################################
-
+ 
 
 MCls <- sort(unique(res$MCls))
 for (oneMCl in MCls){
     ##
-    fn <- paste("./1_input_data/", oneMCl, ".multiome.rds", sep="")
-    sc2 <- read_rds(fn)
-    sc2 <- subset(sc2, features=geneSel)
+    fn <- paste("./1_input_data/ATAC_outs/", oneMCl, ".atac.rds", sep="")
+    sc <- read_rds(fn)
+    DefaultAssay(sc) <- "ATAC"
+    sc2 <- subset(sc, features=geneSel)
     ##
-    data2 <- sc2[["SCT"]]$data
-    meta2 <- sc2@meta.data%>%dplyr::select(barcode, MCls, treat2)
-
-    identical(meta2$barcode, colnames(data2))
-    cat(oneMCl, "\n")
+    
+    data2 <- sc2[["ATAC"]]$data
+    data2 <- as.matrix(data2)
+    meta2 <- sc2@meta.data%>%dplyr::select(barcode=NEW_BARCODE, MCls, treat2)
+    ###
+    cat(oneMCl, identical(meta2$barcode, colnames(data2)), "\n")
 
     ####
     #### normalize data by each gene 
@@ -124,7 +109,7 @@ for (oneMCl in MCls){
 
     metaNew <- as.data.frame(metaNew)
 
-    opfn <- paste(outdir, "1_RNA.", oneMCl, ".DLDA.rds", sep="")
+    opfn <- paste(outdir, "2_ATAC.", oneMCl, ".DLDA.rds", sep="")
     write_rds(metaNew, file=opfn)
 }
     
