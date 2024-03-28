@@ -413,7 +413,7 @@ gene2 <- intersect(gene0, gene1)
 
 
 MCls <- sort(unique(res$MCls))
-for (oneMCl in MCls[c(1,6,7)]){
+for (oneMCl in MCls){
 
     
     
@@ -445,7 +445,7 @@ comb <- sort(names(df2)[4:9])
 ###
 ### 0_CD4Naive_zinc
 
-for (ii in comb[6]){
+for (ii in comb){
 
 
     
@@ -456,7 +456,7 @@ for (ii in comb[6]){
    names(rr2)[2] <- "rr"
      
    
-   geneSel2 <- rr2%>%filter(abs(rr)>0.35)%>%pull(gene)
+   geneSel2 <- rr2%>%filter(abs(rr)>0)%>%pull(gene)
    nsel <- length(geneSel2)
     
    cat(ii, nsel, "\n") 
@@ -488,11 +488,9 @@ for (ii in comb[6]){
    ### sliding windows    
    mat_ls <- getDynamicalMat(data2, meta, treat=treat0, win=0.1, step=0.01)
 
-   opfn <- paste(outdir2, "1_", ii, "_sliding.win.rds", sep="")
+   ## opfn <- paste(outdir2, "1_", ii, "_sliding.win.rds", sep="")
 
-   write_rds(mat_ls, file=opfn)
-
-   ## if (TRUE) next
+   ## write_rds(mat_ls, file=opfn)
     
    mat1 <- mat_ls$mat1 
 
@@ -598,115 +596,7 @@ for (ii in comb[6]){
 
 
 
-############################
-### Example genes
-#############################
-
-
-rm(list=ls())
-
-outdir2 <- "./3_summary.outs/1_rna_results/3_dynamic.outs/"
-if ( !file.exists(outdir2) ) dir.create(outdir2, showWarnings=F, recursive=T)
-
-
-fn <- "../sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
-resDiff <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
-
-comb <- sort(unique(resDiff$comb))
-
-
-ii <- comb[1]
-fn <- paste(outdir2, "1_", ii, "_sliding.win.rds", sep="")
-mat_res <- read_rds(fn)
-
-mat <- mat_res$mat1
-lda <- mat_res$lda1
-
-geneSel <- c("CD55", "STAT1")
-
-
-gene0 <- geneSel[2]
-plotDF <- data.frame(x=lda, y=as.vector(mat[gene0,]))%>%
-    mutate(x2=(x-min(x))/(max(x)-min(x)))
- 
-p <- ggplot(plotDF, aes(x=x2, y=y))+
-   geom_point(color="grey", size=1.5)+ 
-   geom_smooth(method="loess", se=F, linewidth=1, color="royalblue1")+
-   xlab(paste("pseudotime-", ii, sep=""))+ylab("Relative changes")+
-   ggtitle(bquote(~italic(.(gene0))))+
-   ylim(0, 1)+
-   theme_bw()+
-   theme(plot.title=element_text(hjust=0.5, size=10),
-         axis.title=element_text(size=9),
-         axis.text=element_text(size=9))
-
-figfn <- paste(outdir2, "Figure1_", ii, "_", gene0, ".fitting.png", sep="")
-ggsave(figfn, p, width=400, height=400, units="px", dpi=120)
-
 
                      
 
 
-
-
-
-
-
-
-
-######
-###
-
-## for (oneMCl in MCls){
-
-## ###
-## ### read correlation data    
-## fn <- paste("./3_summary.outs/3_", oneMCl, ".rr.xlsx", sep="")
-## df0 <- read.xlsx(fn)
-
-## ntreat <- ncol(df0)
-## geneSel <- lapply(2:ntreat, function(i){
-##     ##
-##     df2 <- df0[,c(1, i)]
-##     names(df2)[2] <- "rr"
-##     ###
-##     gene0 <- df2%>%arrange(desc(abs(rr)))%>%pull(gene)
-##     gene0[1:10]
-## })
-## geneSel <- unique(unlist(geneSel))
-
-
-
-## ###
-## ### plot data    
-## mat <- df0%>%column_to_rownames(var="gene")
-## mat <- as.matrix(mat)
-## colnames(mat) <- gsub(".*_", "", colnames(mat))
-
-## mat2 <- mat[geneSel,]
-
-
-## mycol <- colorRamp2(seq(-1, 1, length.out=50), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(50))
-## ## mycol <- colorRamp2(seq(0, 1, length.out=12), colorRampPalette(c("white", "red"))(12))
-
-
-## ###
-## ### Heatmap plots
-## p <- Heatmap(mat2, name="PCC", na_col="grey90", 
-##     col=mycol, cluster_rows=T, cluster_columns=F,
-##     show_row_dend=T, row_dend_width=grid::unit(2, "cm"),
-##     row_names_gp=gpar(fontsize=8), column_names_gp=gpar(fontsize=10), ##column_names_rot=-45,
-##     heatmap_legend_param=list(at=seq(-1, 1, by=0.5),
-##         grid_width=grid::unit(0.38, "cm"), legend_height=grid::unit(4, "cm"),
-##         title_gp=gpar(fontsize=8), labels_gp=gpar(fontsize=8))
-##     )
- 
-## figfn <- paste(outdir, "Figure3_", oneMCl, "_corr.heatmap.png", sep="")
-## ###ggsave(figfn, p, width=520, height=520, units="px",dpi=120)
-## png(figfn, height=900, width=450, res=120)
-## print(p)
-## dev.off()    
-
-## cat(oneMCl, "genes", length(geneSel), "\n")
-    
-## }    
