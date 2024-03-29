@@ -219,12 +219,14 @@ cg <- cg%>%mutate(Cluster2=paste(MCls, contrast, sep="_"),
 ###
 ### tree plots for Up-regulated DEGs
 
-cg2 <- cg%>%dplyr::filter(direction=="Up", maxGSSize>10, maxGSSize<500, ngene>5, p.adjust<0.05) 
+cg2 <- cg%>%dplyr::filter(direction=="Up", maxGSSize>10, maxGSSize<500, ngene>5) 
 
 x <- cg2@compareClusterResult
-
+ 
 GOsel <- x%>%filter(ONTOLOGY=="BP")%>%
-    group_by(Cluster2)%>%slice_min(order_by=pvalue, n=5)%>%pull(Description)%>%unique()
+    group_by(Cluster2)%>%slice_min(order_by=pvalue, n=5)%>%
+    filter(p.adjust<0.05)%>%
+    pull(Description)%>%unique()
 
 
 ###
@@ -233,6 +235,8 @@ d <- GOSemSim::godata("org.Hs.eg.db", ont="BP")
 cg2 <- enrichplot::pairwise_termsim(cg2, semData=d, method="Wang")
  
 sim <- cg2@termsim
+GOsel <- intersect(GOsel, rownames(sim))
+
 sim2 <- sim[GOsel, GOsel]
 dsim2 <- as.dist(1-sim2)
 row_dend <- as.dendrogram(hclust(dsim2)) ##, method="median"))
@@ -291,16 +295,18 @@ col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1, treatment=col2),
   ## show_legend=c(F,F))
   ##simple_anno_size=unit(0.3, "cm"))
 
-
-
  
 mat3 <- mat2
 mat3[not_sig] <- NA
 
-rownames(mat3)[2] <- "transmembrane receptor protein tyrosine kinase"
-rownames(mat3)[4] <- "transmembrane receptor protein serine/threonine kinase"
-rownames(mat3)[58] <- "immune response-activating cell surface receptor"
-rownames(mat3)[59] <- "immune response-regulating cell surface receptor"
+
+nn <- sapply(rownames(mat3), nchar)
+
+
+rownames(mat3)[2] <- "transmembrane receptor protein tyrosine kinase signal"
+rownames(mat3)[4] <- "transmembrane receptor protein serine/threonine kinase signal"
+rownames(mat3)[58] <- "immune response-activating cell surface receptor signal"
+rownames(mat3)[59] <- "immune response-regulating cell surface receptor signal"
 
 
 p1 <- Heatmap(mat3, col=mycol, na_col="white",
@@ -339,12 +345,13 @@ dev.off()
 
 ###
 ### selected GO terms
-cg2 <- cg%>%dplyr::filter(direction=="Down", maxGSSize>10, maxGSSize<500, ngene>5, p.adjust<0.05) 
+cg2 <- cg%>%dplyr::filter(direction=="Down", maxGSSize>10, maxGSSize<500, ngene>5) 
 
 x <- cg2@compareClusterResult
 
 GOsel <- x%>%filter(ONTOLOGY=="BP")%>%
-    group_by(Cluster2)%>%slice_min(order_by=pvalue, n=5)%>%pull(Description)%>%unique()
+    group_by(Cluster2)%>%slice_min(order_by=pvalue, n=5)%>%
+    filter(p.adjust<0.05)%>%pull(Description)%>%unique()
 
 
 ### similarity 
@@ -352,6 +359,8 @@ d <- GOSemSim::godata("org.Hs.eg.db", ont="BP")
 cg2 <- enrichplot::pairwise_termsim(cg2, semData=d, method="Wang")
 
 sim <- cg2@termsim
+GOsel <- intersect(GOsel, rownames(sim))
+
 sim2 <- sim[GOsel, GOsel]
 dsim2 <- as.dist(1-sim2)
 row_dend <- as.dendrogram(hclust(dsim2))
@@ -419,10 +428,12 @@ mat3 <- mat2
 mat3[not_sig] <- NA
 
 nn <- sapply(rownames(mat3), nchar) 
-
-rownames(mat3)[15] <- "adaptive immune response based on somatic recombination of immune receptors"
-rownames(mat3)[16] <- "antigen processing and presentation of exogenous petide antigen"
-rownames(mat3)[26] <- "CD4+ alpha-beta T differentiation in immune response"
+ 
+rownames(mat3)[15] <- "adaptive immune response based on somatic recombination immune receptors"
+rownames(mat3)[16] <- "antigen processing, presentation of exogenous petide antigen via MHC II"
+rownames(mat3)[17] <- "antigen processing, presentation of petide antigen via MHC II"
+rownames(mat3)[26] <- "CD4, alpha-beta T differentiation in immune response"
+rownames(mat3)[78] <- "antimicrobial humoral immune response by antimicrobial peptide"   
 
 
 p2 <- Heatmap(mat3, col=mycol, na_col="white",
@@ -446,10 +457,13 @@ p2 <- Heatmap(mat3, col=mycol, na_col="white",
 ###
 figfn <- paste(outdir, "FigS2_5_enriched_down.heatmap.png", sep="")
 ## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
-png(figfn, width=1850, height=1400, res=120)
+png(figfn, width=1850, height=1500, res=120)
 set.seed(0)
-p2 <- draw(p2, heatmap_legend_side="left", padding=unit(c(0.2, 0.2, 0.2, 6), "cm"),
+p2 <- draw(p2, heatmap_legend_side="left", padding=unit(c(0.2, 0.2, 0.2, 4), "cm"),
            annotation_legend_side="left")
 dev.off()
+
+
+
 
 
