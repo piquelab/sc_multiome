@@ -6,9 +6,9 @@ The scripts in this directory are mainly used for plots in the pulication and de
    - [1_processing_plots.R](1_processing_plots.R) for Figure1
    - The folder `1.2_ArchR_process` contains the script for calculating gene score using [ArchR](https://www.archrproject.com/)
 2. Differential analysis (gene expression+chromatin accessibility)
-   - [2.2_diff_clusterProfiler.R](2.2_diff_clusterProfiler.R) for enrichment analysis for DEGs
    - [2.3_summary_diff.R](2.3_summary_diff.R) for main Figure2 and supplementary Figures in differential analysis (gene expression+chromatin accessbility)     
-   - [2.3_MA_diff.R](2.3_MA_diff.R) for MA and qq plots in the differential analysis  
+   - [2.3_MA_diff.R](2.3_MA_diff.R) for MA and qq plots in the differential analysis
+   - [2.3_clusterProfiler.R](2.3_clusterProfiler.R) for enrichment analysis for DEGs  
 3. Compare response changes between gene expression and chromatin accessibility
    - [3.2_compareRNAandATAC.R](3.2_compareRNAandATAC.R) for correlation analysis between RNA and ATAC
    - [3.2_track_plots.R](3.2_track_plots.R) for chromatin track plots
