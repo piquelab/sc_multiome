@@ -12,6 +12,7 @@ library(circlize)
 library(ggrepel)
 library(ggrastr)
 library(openxlsx)
+library(annotables)
 
 ## library(MASS)
 ## library("rainbow", lib.loc="/wsu/home/ha/ha21/ha2164/Bin/Rpackages")
@@ -32,7 +33,7 @@ library(openxlsx)
 
 
 rm(list=ls())
-outdir <- "./3_compare_plots.outs/"
+outdir <- "./Plots_pub/3_compare_plots.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
@@ -42,7 +43,13 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 #### DEGs
 fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
 resDG <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
-DEG <- resDG%>%dplyr::filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+
+gene0 <- unique(resDG$gene)
+gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
+gene2 <- intersect(gene0, gene1)
+
+
+DEG <- resDG%>%dplyr::filter(p.adjusted<0.1, abs(estimate)>0.5, gene%in%gene2)%>%pull(gene)%>%unique()
 ###resDG <- resDG%>%filter(gene%in%DEG)
 
 
@@ -64,8 +71,7 @@ peakAnno <- peakAnno%>%dplyr::select(peak=query_region, gene_id=gene_name, dtss=
 ### calcualte median value of LFC of DP ###
 comb <- sort(unique(resDP$comb))
 dfcomb <- map_dfr(comb, function(ii){
-   ###
-   cat(ii, "\n") 
+   ### 
    x <- resDP%>%filter(comb==ii)%>%dplyr::select(estimate, peak)
    x2 <- x%>%left_join(peakAnno, by="peak")
    x2 <- x2 %>%filter(dtss<1e+05, peak%in%DP) ## 100 kb
@@ -77,14 +83,22 @@ dfcomb <- map_dfr(comb, function(ii){
    df2 <- resDG%>%dplyr::filter(comb==ii, gene%in%DEG)%>%
        dplyr::select(comb, MCls, contrast, gene, LFC_gene=estimate)%>%
        inner_join(x3, by=c("gene"="gene_id"))
-   ### 
+   ###
+   cat(ii, nrow(df2), "\n") 
    df2
 })
 
 
-opfn <- paste(outdir, "1.2_LFC_gene_ATAC_comb.rds", sep="")
+opfn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
 write_rds(dfcomb, file=opfn)
 
+
+###
+###
+
+## fn <- "./3_compare_plots.outs/1.2_LFC_gene_ATAC_comb.rds"
+## dfcomb <- read_rds(fn)
+## dfcomb2 <- dfcomb%>%filter(gene%in%gene2)
 
 
 
@@ -94,7 +108,7 @@ write_rds(dfcomb, file=opfn)
 #########################################################################
 
 rm(list=ls())
-outdir <- "./3_compare_plots.outs/"
+outdir <- "./Plots_pub/3_compare_plots.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
@@ -102,7 +116,7 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 ####
 #### box plot show correlation
 
-fn <- paste(outdir, "1.2_LFC_gene_ATAC_comb.rds", sep="")
+fn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
 df <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
 
 dfcorr <- df%>%group_by(MCls, contrast)%>%
@@ -125,36 +139,47 @@ col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
 p1 <- ggplot(dfcorr, aes(x=MCls, y=rr, fill=MCls))+
    ##geom_violin()+ 
    geom_boxplot(outlier.shape=NA, lwd=0.25)+
-   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2, stroke=0.9)+
+   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
    geom_jitter(width=0.2, size=0.5)+     
    scale_fill_manual(values=col1)+
-   ylab("Spearman's correlation")+ylim(-0.1, 0.5)+
+   ## ggtitle("Between gene expression and chromatin")+ 
+   ylab("SCC")+ylim(-0.1, 0.4)+
    theme_bw()+
    theme(legend.position="none",
          axis.title.x=element_blank(),
-         axis.title.y=element_text(size=9),
-         axis.text.x=element_text(angle=30, hjust=1, size=8),
-         axis.text.y=element_text(size=9))
+         axis.title.y=element_text(size=10),
+         axis.text.x=element_blank(),
+         axis.text.y=element_text(size=10),
+         axis.ticks.x=element_blank(),
+         plot.title=element_text(size=10))
+         ## axis.title.y=element_text(size=9),
+         ## axis.text.x=element_text(angle=30, hjust=1, size=8),
+         ## axis.text.y=element_text(size=9))
 
 ###
 ### group by treat
 p2 <- ggplot(dfcorr, aes(x=contrast, y=rr, fill=contrast))+
    ##geom_violin()+ 
    geom_boxplot(outlier.shape=NA, lwd=0.25)+
-   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2, stroke=0.9)+
+   stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
    geom_jitter(width=0.2, size=0.5)+     
-   scale_fill_manual(values=col2)+
-   ylab("Spearman's correlation")+ylim(-0.1, 0.5)+
+   scale_fill_manual(values=col2)+   ##ylim(-0.1, 0.5)+
+   ylab("SCC")+ylim(-0.1, 0.4)+
    theme_bw()+
    theme(legend.position="none",
          axis.title.x=element_blank(),
-         axis.title.y=element_text(size=9),
-         axis.text.x=element_text(angle=30, hjust=1, size=8),
-         axis.text.y=element_text(size=9))
+         axis.title.y=element_text(size=10),
+         axis.text.x=element_blank(),
+         axis.text.y=element_text(size=10),
+         axis.ticks.x=element_blank())
+         
+         ## axis.title.y=element_text(size=9),
+         ## axis.text.x=element_text(angle=30, hjust=1, size=8),
+         ## axis.text.y=element_text(size=9))
 
-comb_plots <- plot_grid(p1, p2, nrow=2, align="v", rel_heights=c(1, 0.9))
+comb_plots <- plot_grid(p1, p2, nrow=2, align="v") ##, rel_heights=c(1, 0.9))
 figfn <- paste(outdir, "Figure1.2_corr_gene_ATAC_box.png", sep="")
-ggsave(figfn, comb_plots, device="png", width=360, height=560, units="px", dpi=120)
+ggsave(figfn, comb_plots, device="png", width=340, height=580, units="px", dpi=120)
 
 
 
@@ -166,14 +191,14 @@ ggsave(figfn, comb_plots, device="png", width=360, height=560, units="px", dpi=1
 
 
 rm(list=ls())
-outdir <- "./3_compare_plots.outs/"
+outdir <- "./Plots_pub/3_compare_plots.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
 ###
 ### plot data
 
-fn <- paste(outdir, "1.2_LFC_gene_ATAC_comb.rds", sep="")
+fn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
 df0 <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
 
 
@@ -190,6 +215,8 @@ resDG <- read_rds(fn)%>%as.data.frame()%>%
     mutate(comb=paste(MCls, contrast, sep="_"),
            is_sig=ifelse(p.adjusted<0.1&abs(estimate)>0.5, 1, 0),
            is_sig=ifelse(is.na(is_sig), 0, is_sig))
+
+
 
 resDG2 <- resDG%>%filter(comb==ii)%>%dplyr::select(gene, is_sig)
 
@@ -224,7 +251,7 @@ p0 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
                   size=factor(gr), shape=factor(gr))   )+
    scale_color_manual(values=c("grey", "red"), labels=c("Not DEG", "DEG"),
       guide=guide_legend(override.aes=list(size=1.5)))+
-   scale_size_manual(values=c("gr1"=0.8, "gr2"=1.2), guide="none")+
+   scale_size_manual(values=c("gr1"=0.8, "gr2"=1.5), guide="none")+
    scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+ 
    annotate("text", label=eq, x=x0, y=y0, size=3.5, parse=T)+ 
    scale_x_continuous("LFC on gene chromatin accessibility", limits=c(-6,6))+
@@ -234,20 +261,20 @@ p0 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
    ## geom_smooth(method="lm", formula=y~x, size=0.5, se=F)+ 
    ggtitle("vitamin D in Monocyte")+
    theme_bw()+ 
-   theme(legend.position=c(0.2, 0.8),
+   theme(legend.position=c(0.2, 0.75),
          legend.title=element_blank(),
-         legend.text=element_text(size=8),
-         legend.key.size=unit(0.3, "cm"),
+         legend.text=element_text(size=10),
+         legend.key.size=unit(0.4, "cm"),
          legend.background=element_blank(),
          legend.key=element_blank(),
          legend.box.background=element_blank(),
          axis.title=element_text(size=10),
          axis.text=element_text(size=10),
          plot.title=element_text(hjust=0.5, size=12))        
-
+ 
 figfn <- paste(outdir, "Figure1.3_", ii, "_scatter_LFC.png", sep="")
-ggsave(figfn, p0, device="png", width=420, height=360, units="px", dpi=120)
-
+ggsave(figfn, p0, device="png", width=380, height=350, units="px", dpi=120)
+ 
 
 ###
 ### another example
@@ -293,12 +320,12 @@ anno2 <- df3%>%filter(LFC_gene>4, is_sig>0, grepl("^MT", gene))
 
 ###
 ### main figures
-p0 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
+p1 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
    geom_point(aes(color=factor(is_sig),
                   size=factor(gr), shape=factor(gr))   )+
    scale_color_manual(values=c("grey", "red"), labels=c("Not DEG", "DEG"),
       guide=guide_legend(override.aes=list(size=1.5)))+
-   scale_size_manual(values=c("gr1"=0.8, "gr2"=1.2), guide="none")+
+   scale_size_manual(values=c("gr1"=0.8, "gr2"=1.5), guide="none")+
    scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+        
    annotate("text", label=eq, x=x0, y=y0, size=3.5, parse=T)+
    geom_text_repel(data=anno2,
@@ -327,7 +354,7 @@ p0 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
          plot.title=element_text(hjust=0.5, size=12))        
 
 figfn <- paste(outdir, "Figure1.3_", ii, "_scatter_LFC.png", sep="")
-ggsave(figfn, p0, device="png", width=420, height=360, units="px", dpi=120)
+ggsave(figfn, p1, device="png", width=380, height=350, units="px", dpi=120)
 
 
 
@@ -341,14 +368,19 @@ ggsave(figfn, p0, device="png", width=420, height=360, units="px", dpi=120)
 
 rm(list=ls()) 
 
-outdir <- "./3_compare_plots.outs/"
+outdir <- "./Plots_pub/3_compare_plots.outs/"
 
 
 ### DEG results
 fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
 resDG <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
 
+gene0 <- unique(resDG$gene)
+gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
+gene2 <- intersect(gene0, gene1)
 
+resDG <- resDG%>%filter(gene%in%gene2)
+ 
 #### DP results
 fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
 resDP <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
@@ -422,7 +454,7 @@ x2 <- DFcomb%>%filter(odds>1, FDR<0.05)%>%dplyr::select(comb, MCls, contrast, FD
 
 rm(list=ls()) 
 
-outdir <- "./3_compare_plots.outs/"
+outdir <- "./Plots_pub/3_compare_plots.outs/"
 
 fn <- "./3_compare_plots.outs/2_enrich_Fisher.txt"
 DFcomb <- read.table(fn, header=T)
@@ -463,14 +495,14 @@ p <- ggplot(plotDF, aes(x=log_odds, y=comb))+
          axis.title.x=element_text(size=10),
          axis.text.x=element_text(size=10),
          axis.text.y=element_text(size=10),
-         legend.position="none",
-         legend.title=element_blank(),
-         legend.text=element_text(size=8),
-         legend.key.size=unit(0.4, "cm"))
+         legend.position="none")
+         ## legend.title=element_blank(),
+         ## legend.text=element_text(size=8),
+         ## legend.key.size=unit(0.4, "cm"))
          ##legend.position="none")
  
 figfn <- paste(outdir, "Figure2_enrich_forest.png", sep="")
-ggsave(figfn, p, device="png", width=400, height=550, units="px", dpi=120)
+ggsave(figfn, p, device="png", width=380, height=580, units="px", dpi=120)
 
 
 
@@ -480,8 +512,87 @@ ggsave(figfn, p, device="png", width=400, height=550, units="px", dpi=120)
 ############################
 
 
+
+################
+### FigS3_1
+################
+
+################################
+#### Heatmap of correlation ####
+################################
+
+
+rm(list=ls())
+
+outdir <- "./3_compare_plots.outs/"
+if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
+
+
+
+fn <- paste(outdir, "1.2_LFC_gene_ATAC_comb.rds", sep="")
+df <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
+
+dfcorr <- df%>%group_by(MCls, contrast)%>%
+    summarize(rr=cor(LFC_gene, LFC_ATAC, method="spearman"), .groups="drop")%>%as.data.frame()
+
+dfmat <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
+
+mat <- dfmat%>%column_to_rownames(var="MCls")
+mat <- as.matrix(mat)
+
+
 ###
-### 
+### significance
+sig <- df%>%group_by(MCls, contrast)%>%
+    summarize(pval=cor.test(LFC_gene, LFC_ATAC,  method="spearman")$p.value, .groups="drop")%>%as.data.frame()
+sig <- sig%>%mutate(FDR=p.adjust(pval, method="BH"), is_sig=ifelse(FDR<0.05, 1, 0))
+
+sig_mat <- sig%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=is_sig)%>%as.data.frame()
+ 
+sig_mat <- sig_mat%>%column_to_rownames(var="MCls")
+sig_mat <- as.matrix(sig_mat)
+
+mat2 <- mat*sig_mat
+
+mat2[mat2==0] <- NA
+
+
+### setting color
+## mybreak <- seq(0, 1, length.out=20)
+## col0 <- brewer.pal(n=9,name="Reds")
+## mycol <- colorRamp2(mybreak, colorRampPalette(col0)(20))
+
+mycol <- colorRamp2(seq(-1, 1, length.out=50), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(50))
+
+
+
+## mycol <- colorRamp2(seq(0, 1, length.out=12), colorRampPalette(c("white", "red"))(12))
+
+p <- Heatmap(mat2, name="SCC", na_col="grey90", 
+    col=mycol, cluster_rows=F, cluster_columns=F,
+    row_names_gp=gpar(fontsize=10), column_names_gp=gpar(fontsize=10), ##column_names_rot=-45,
+    heatmap_legend_param=list(at=seq(-1, 1, by=0.5),
+        grid_width=grid::unit(0.38, "cm"), legend_height=grid::unit(4, "cm"),
+        title_gp=gpar(fontsize=8), labels_gp=gpar(fontsize=8)),
+    cell_fun=function(j, i, x, y, width, height, fill){
+       grid.text(round(mat[i,j],digits=3), x, y, gp=gpar(fontsize=10))
+    })
+
+figfn <- paste(outdir, "FigS3_1_corr_heatmap.png", sep="")
+###ggsave(figfn, p, width=520, height=520, units="px",dpi=120)
+png(figfn, height=520, width=520, res=120)
+print(p)
+dev.off()    
+
+
+
+
+
+
+###############
+### FigS3_2 
+###############
+
 
 #####################################################################
 ### Scatter plots of SCC against #DEGs to compare which is better ###
@@ -509,6 +620,10 @@ dfcorr <- dfcorr%>%mutate(comb=paste(MCls, contrast, sep="_"))
 ### Number of DEGs
 fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
 resDEG <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
+gene0 <- unique(res$gene)
+gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
+gene2 <- intersect(gene0, gene1)
+
 resDEG2 <- resDEG%>%dplyr::filter(p.adjusted<0.1, abs(estimate)>0.5)
 
 summ <-  resDEG2%>%group_by(MCls, contrast)%>%
@@ -580,7 +695,7 @@ p2 <- ggplot(plotDF2, aes(x=ngene, y=rr, color=MCls))+
 ###
 ###
 comb_plots <- plot_grid(p1, p2, ncol=2, align="h", rel_widths=c(1, 1.5))
-figfn <- paste(outdir, "FigureS1.3_scatter_SCCvsDEGs_DARs.png", sep="")
+figfn <- paste(outdir, "FigS3_2_scatter_SCCvsDEGs_DARs.png", sep="")
 ggsave(figfn, comb_plots, device="png", width=800, height=380, units="px", dpi=120)
 
 
@@ -590,79 +705,11 @@ ggsave(figfn, comb_plots, device="png", width=800, height=380, units="px", dpi=1
 
 
 
-################################
-#### Heatmap of correlation ####
-################################
-
-
-rm(list=ls())
-
-outdir <- "./3_compare_plots.outs/"
-if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
-
-
-
-fn <- paste(outdir, "1.2_LFC_gene_ATAC_comb.rds", sep="")
-df <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
-
-dfcorr <- df%>%group_by(MCls, contrast)%>%
-    summarize(rr=cor(LFC_gene, LFC_ATAC, method="spearman"), .groups="drop")%>%as.data.frame()
-
-dfmat <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
-
-mat <- dfmat%>%column_to_rownames(var="MCls")
-mat <- as.matrix(mat)
-
-
-###
-### significance
-sig <- df%>%group_by(MCls, contrast)%>%
-    summarize(pval=cor.test(LFC_gene, LFC_ATAC,  method="spearman")$p.value, .groups="drop")%>%as.data.frame()
-sig <- sig%>%mutate(FDR=p.adjust(pval, method="BH"), is_sig=ifelse(FDR<0.05, 1, 0))
-
-sig_mat <- sig%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=is_sig)%>%as.data.frame()
- 
-sig_mat <- sig_mat%>%column_to_rownames(var="MCls")
-sig_mat <- as.matrix(sig_mat)
-
-mat2 <- mat*sig_mat
-
-mat2[mat2==0] <- NA
-
-
-### setting color
-## mybreak <- seq(0, 1, length.out=20)
-## col0 <- brewer.pal(n=9,name="Reds")
-## mycol <- colorRamp2(mybreak, colorRampPalette(col0)(20))
-
-mycol <- colorRamp2(seq(-1, 1, length.out=50), colorRampPalette(rev(brewer.pal(n=7,name="RdBu")))(50))
-
-
-
-## mycol <- colorRamp2(seq(0, 1, length.out=12), colorRampPalette(c("white", "red"))(12))
-
-p <- Heatmap(mat2, name="SCC", na_col="grey90", 
-    col=mycol, cluster_rows=F, cluster_columns=F,
-    row_names_gp=gpar(fontsize=10), column_names_gp=gpar(fontsize=10), ##column_names_rot=-45,
-    heatmap_legend_param=list(at=seq(-1, 1, by=0.5),
-        grid_width=grid::unit(0.38, "cm"), legend_height=grid::unit(4, "cm"),
-        title_gp=gpar(fontsize=8), labels_gp=gpar(fontsize=8)),
-    cell_fun=function(j, i, x, y, width, height, fill){
-       grid.text(round(mat[i,j],digits=3), x, y, gp=gpar(fontsize=10))
-    })
-
-figfn <- paste(outdir, "Figure1.5_corr_heatmap.png", sep="")
-###ggsave(figfn, p, width=520, height=520, units="px",dpi=120)
-png(figfn, height=520, width=520, res=120)
-print(p)
-dev.off()    
- 
-
 
 #############################
 ### correlation for genes ###
 #############################
-
+ 
 rm(list=ls())
 
 outdir2 <- "./3_compare_plots.outs/2_comb/"
