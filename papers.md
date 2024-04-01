@@ -42,6 +42,7 @@
 - Common Genetic Variants Modulate Pathogen-Sensing Responses in Human Dendritic Cells, https://www.science.org/doi/10.1126/science.1246980
 - Smoking changes adaptive immunity with persistent effects, https://www.nature.com/articles/s41586-023-06968-8
 - Genetic regulation of cell-type specific chromatin accessibility shapes the etiology of brain diseases, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10120699/
+- maxATAC: Genome-scale transcription-factor binding prediction from ATAC-seq with deep neural networks, https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1010863#pcbi.1010863.ref017
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
