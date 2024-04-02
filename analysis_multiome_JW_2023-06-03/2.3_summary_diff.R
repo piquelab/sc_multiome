@@ -11,8 +11,14 @@ library(circlize)
 library(ggrepel)
 library(ggrastr)
 library(openxlsx)
+library(annotables)
 
+    
 rm(list=ls())
+
+## working directory
+## setwd("/nfs/rprdata/julong/sc_multiome/analysis_multiome_JW_2023-06-03")
+
 
 outdir <- "./Plots_pub/2_diff_plots/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
@@ -49,15 +55,24 @@ col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
 fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
 res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
 
-res2 <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%
+
+gene0 <- unique(res$gene)
+gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
+gene2 <- intersect(gene0, gene1)
+
+res2 <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5, gene%in%gene2)%>%
    mutate(direction=ifelse(estimate>0, "Up", "Down")) # sign(estimate)))
+
+
+
 
 summ <- res2%>%group_by(MCls, contrast)%>%summarize(ngene=n(), .groups="drop")
 mat <- summ%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=ngene)
 
+## sigs <- unique(res2$gene)
 
-res2%>%group_by(contrast)%>%summarize(ngene=length(unique(gene)), .groups="drop")%>%arrange(desc(ngene))
-res2%>%group_by(MCls)%>%summarize(ngene=length(unique(gene)), .groups="drop")%>%arrange(desc(ngene))
+## res2%>%group_by(contrast)%>%summarize(ngene=length(unique(gene)), .groups="drop")%>%arrange(desc(ngene))
+## res2%>%group_by(MCls)%>%summarize(ngene=length(unique(gene)), .groups="drop")%>%arrange(desc(ngene))
 
 ### data for heatmap
 mat2 <- as.matrix(mat[, -1])
@@ -75,13 +90,13 @@ p <- Heatmap(mat2, name="#DEGs", col=mycol, cluster_rows=F, cluster_columns=F,
     row_names_gp=gpar(fontsize=12), row_names_side="left",      
     column_names_gp=gpar(fontsize=12), column_names_rot=45,
     heatmap_legend_param=list(at=round(seq(olap_min, olap_max, length.out=5),0),
-       grid_width=grid::unit(0.4, "cm"), legend_height=grid::unit(6, "cm"), title="",
+       grid_height=grid::unit(0.3, "cm"), legend_width=grid::unit(6, "cm"), title="",
        title_gp=gpar(fontsize=9), labels_gp=gpar(fontsize=12), direction="horizontal"),
     cell_fun=function(j, i, x, y, width, height, fill){
         grid.text(mat2[i,j], x, y, gp=gpar(fontsize=12))
     })    
 
-figfn <- paste(outdir, "Figure1.1_DEGs.heatmap.png", sep="")
+figfn <- paste(outdir, "Figure1.1_DEGs.heatmap2.png", sep="")
 png(figfn, width=500, height=520, res=120)
 draw(p, heatmap_legend_side="bottom")
 dev.off()
@@ -96,6 +111,7 @@ x <- res2%>%group_by(contrast, direction)%>%summarize(ny=length(unique(gene)), .
 
 summDF <- res2%>%group_by(contrast)%>%summarize(ny=length(unique(gene)),.groups="drop")
 
+ymax <- max(summDF$ny)
 
 p2 <- ggplot(summDF, aes(x=contrast, y=ny, fill=contrast))+ ## , color=contrast))+ ##, alpha=direction))+
     geom_bar(stat="identity")+
@@ -104,13 +120,13 @@ p2 <- ggplot(summDF, aes(x=contrast, y=ny, fill=contrast))+ ## , color=contrast)
     ##    "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3"), guide="none")+
     ## scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
     ##      guide=guide_legend(override.aes=list(fill="red", size=1.5)))+
-    ylab("DEGs")+                                                     
+    scale_y_continuous("DEGs", breaks=seq(0, 5000, by=2500), limits=c(0, 5200))+ 
     theme_bw()+
     theme(legend.position="none", ##c(0.8, 0.8),
-          legend.title=element_blank(),
-          legend.key=element_blank(),
-          legend.box.background=element_blank(),
-          legend.background=element_blank(),
+          ## legend.title=element_blank(),
+          ## legend.key=element_blank(),
+          ## legend.box.background=element_blank(),
+          ## legend.background=element_blank(),
           axis.title.x=element_blank(),
           axis.title.y=element_text(size=12),
           axis.text.x=element_blank(),
@@ -133,6 +149,7 @@ ggsave(figfn, plot=p2, width=480, height=220, units="px", dpi=120) ## ggsave
 ##     group_by(MCls)%>%summarize(ny=sum(ny),.groups="drop")
 
 summDF2 <- res2%>%group_by(MCls)%>%summarize(ny=length(unique(gene)),.groups="drop")
+ymax <- summDF2$ny
 
 p3 <- ggplot(summDF2, aes(x=MCls, y=ny, fill=MCls))+ ##, color=MCls, alpha=direction))+
     geom_bar(stat="identity")+
@@ -144,13 +161,13 @@ p3 <- ggplot(summDF2, aes(x=MCls, y=ny, fill=MCls))+ ##, color=MCls, alpha=direc
     ##     "6_Monocyte"="#984ea3", "7_dnT"="black"), guide="none")+
     ## scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
     ##      guide=guide_legend(override.aes=list(fill="#ffaa00", size=1.5)))+
-    ylab("DEGs")+                                                     
+    scale_y_continuous("DEGs", breaks=seq(0, 3000, by=1500), limits=c(0, 3800))+     
     theme_bw()+
     theme(legend.position="none",
-          legend.title=element_blank(),
-          legend.key=element_blank(),
-          legend.box.background=element_blank(),
-          legend.background=element_blank(),
+          ## legend.title=element_blank(),
+          ## legend.key=element_blank(),
+          ## legend.box.background=element_blank(),
+          ## legend.background=element_blank(),
           axis.title.x=element_text(size=12),
           axis.title.y=element_blank(),
           axis.text.x=element_text(size=12),
@@ -181,23 +198,23 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
 
-fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
-res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
+## fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
+## res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
 
-sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+## sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
 
-res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
+## res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
 
-###
-### data format #DEG*combination
-### Orginal data is a matrix of 7241*48 and after filtering missing value, it is 7117*48
-mat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=estimate)
-mat2 <- as.matrix(mat[,-1])
-rnz <- rowSums(is.na(mat2))
-mat2 <- mat2[rnz==0,] ### 7117*48
+## ###
+## ### data format #DEG*combination
+## ### Orginal data is a matrix of 7241*48 and after filtering missing value, it is 7117*48
+## mat <- res2%>%pivot_wider(id_cols=gene, names_from=comb, values_from=estimate)
+## mat2 <- as.matrix(mat[,-1])
+## rnz <- rowSums(is.na(mat2))
+## mat2 <- mat2[rnz==0,] ### 7117*48
 
-### correlation data for plot
-corr_mat <- cor(mat2, method="spearman")
+## ### correlation data for plot
+## corr_mat <- cor(mat2, method="spearman")
 
 ## opfn <- paste(outdir, "1.x_DEG_corr.rds", sep="")
 ## write_rds(corr_mat, file=opfn)
@@ -233,9 +250,9 @@ p0 <- Heatmap(corr_mat, col=mycol,
    show_column_names=T, column_names_gp=gpar(fontsize=6),
    ##column_names_rot=-45,   
    top_annotation=col_ha,
-   heatmap_legend_param=list(title="rho",
+   heatmap_legend_param=list(title="SCC",
       title_gp=gpar(fontsize=10),
-      at=seq(-1, 1, by=0.25), 
+      at=seq(-1, 1, by=0.5), 
       labels_gp=gpar(fontsize=8),
       grid_width=grid::unit(0.45, "cm"),
       legend_height=grid::unit(7.8, "cm")), 
@@ -266,7 +283,12 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 ### generate pairwise correlation matrix
 fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
 res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
-sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+
+gene0 <- unique(res$gene)
+gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
+gene2 <- intersect(gene0, gene1)
+
+sigs <- res%>%filter(p.adjusted<0.1, abs(estimate)>0.5, gene%in%gene2)%>%pull(gene)%>%unique()
 res2 <- res%>%filter(gene%in%sigs)%>%dplyr::select(comb, gene, estimate, statistic)
  
 ###
@@ -335,7 +357,7 @@ p1 <- ggplot(DFcorr, aes(x=MCls, y=rr, fill=MCls))+
    ##geom_violin()+ 
    geom_boxplot(outlier.shape=NA, lwd=0.25)+
    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.2)+     
+   geom_jitter(width=0.2, size=0.4)+     
    scale_fill_manual(values=col1)+
    ylab("SCC (DEGs)")+ylim(0, 0.8)+
    theme_bw()+
@@ -400,7 +422,7 @@ p3 <- ggplot(DFcorr3, aes(x=comb, y=as.numeric(rr)))+ ##, fill=factor(MCls), gro
          axis.text.x=element_text(angle=45, hjust=1, size=7.5),
          axis.text.y=element_text(size=12))                         
   
-figfn <- paste(outdir, "Figure1.3_pairtreats.box.png", sep="")
+figfn <- paste(outdir, "Figure1.2_corr_pairtreats.box.png", sep="")
 ggsave(figfn, plot=p3, width=480, height=350, units="px", dpi=120)
 
 
@@ -455,7 +477,7 @@ p4 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
    ##geom_violin()+ 
    geom_boxplot(outlier.shape=NA, lwd=0.25)+
    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.2)+ 
+   geom_jitter(width=0.2, size=0.4)+ 
    scale_fill_manual(values=col2)+
    ylab("SCC (DEGs)")+ylim(0,0.8)+
    theme_bw()+
@@ -466,7 +488,7 @@ p4 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
          axis.text.y=element_text(size=12),
          axis.ticks.x=element_blank())                         
 ###
-figfn <- paste(outdir, "Figure1.4_corr_treat.box.png", sep="")
+figfn <- paste(outdir, "Figure1.2_corr_treat.box.png", sep="")
 ggsave(figfn, plot=p4, width=480, height=250, units="px", dpi=120) ## ggsave 
 
 
@@ -530,7 +552,7 @@ p <- Heatmap(mat2, name="#DARs", col=mycol, cluster_rows=F, cluster_columns=F,
     row_names_gp=gpar(fontsize=12), row_names_side="left",      
     column_names_gp=gpar(fontsize=12), column_names_rot=45,
     heatmap_legend_param=list(at=round(seq(olap_min, olap_max, length.out=5),0),
-       grid_width=grid::unit(0.4, "cm"), legend_height=grid::unit(6, "cm"), title="",
+       grid_height=grid::unit(0.3, "cm"), legend_width=grid::unit(6, "cm"), title="",
        title_gp=gpar(fontsize=12), labels_gp=gpar(fontsize=12), direction="horizontal"),
     cell_fun=function(j, i, x, y, width, height, fill){
         grid.text(mat2[i,j], x, y, gp=gpar(fontsize=12))
@@ -554,7 +576,8 @@ summDF <- res2%>%group_by(contrast)%>%summarize(ny=length(unique(gene)),.groups=
 ## col=list(celltype=c("0_CD4Naive"="#ffaa00", "1_TCM"="pink", "2_NKcell"="#aa4b56", "3_TEM"="blue",
 ##                    "4_Bcell"="#4daf4a", "5_CD8Naive"="green", "6_Monocyte"="#984ea3", "7_dnT"="black"),
 ##             treats=)
- 
+ymax <- max(summDF$ny)
+
 p2 <- ggplot(summDF, aes(x=contrast, y=ny, fill=contrast))+ ##, color=contrast, alpha=direction))+
     geom_bar(stat="identity")+
     scale_fill_manual(values=col2, guide="none")+
@@ -562,7 +585,7 @@ p2 <- ggplot(summDF, aes(x=contrast, y=ny, fill=contrast))+ ##, color=contrast, 
     ##    "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3"), guide="none")+
     ## scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
     ##      guide=guide_legend(override.aes=list(fill="red", size=1.5)))+
-    ylab("DARs")+                                                     
+    scale_y_continuous("DARs", breaks=seq(0, 9000, by=3000), limits=c(0, 12000))+   
     theme_bw()+
     theme(legend.position="none", ##legend.position=c(0.8, 0.8),
           legend.title=element_blank(),
@@ -594,6 +617,8 @@ ggsave(figfn, plot=p2, width=480, height=220, units="px", dpi=120) ## ggsave
 
 summDF2 <- res2%>%group_by(MCls)%>%summarize(ny=n(),.groups="drop")
 
+ymax <- max(summDF2$ny)
+
 p3 <- ggplot(summDF2, aes(x=MCls, y=ny, fill=MCls))+ ##, color=MCls, alpha=direction))+
     geom_bar(stat="identity")+
     coord_flip()+
@@ -604,7 +629,7 @@ p3 <- ggplot(summDF2, aes(x=MCls, y=ny, fill=MCls))+ ##, color=MCls, alpha=direc
     ##     "6_Monocyte"="#984ea3", "7_dnT"="black"), guide="none")+
     ## scale_alpha_manual(values=c("Down"=0.5, "Up"=1),
     ##      guide=guide_legend(override.aes=list(fill="#ffaa00", size=1.5)))+
-    ylab("DARs")+                                                     
+   scale_y_continuous("DARs", breaks=seq(0, 9000, by=3000), limits=c(0, 10000))+  
     theme_bw()+
     theme(legend.position="none",
           legend.title=element_blank(),
@@ -727,7 +752,7 @@ col2 <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
 x <- str_split(colnames(corr_mat), "_", simplify=T)
 df_col <- data.frame(celltype=paste(x[,1], x[,2], sep="_"), contrast=x[,3])
 col_ha <- HeatmapAnnotation(df=df_col, col=list(celltype=col1, contrast=col2),
-    show_legend=F,                        
+    show_legend=T,                        
     annotation_name_gp=gpar(fontsize=10),
     annotation_legend_param=list(
   celltype=list(title_gp=gpar(fontsize=10), labels_gp=gpar(fontsize=8), title="celltype",
@@ -744,9 +769,9 @@ p2 <- Heatmap(corr_mat, col=mycol,
    show_column_names=T, column_names_gp=gpar(fontsize=6),
    ##column_names_rot=-45,   
    top_annotation=col_ha,
-   heatmap_legend_param=list(title="rho",
+   heatmap_legend_param=list(title="SCC",
       title_gp=gpar(fontsize=10),
-      at=seq(-1, 1, by=0.25), 
+      at=seq(-1, 1, by=0.5), 
       labels_gp=gpar(fontsize=8),
       grid_width=grid::unit(0.45, "cm"),
       legend_height=grid::unit(6, "cm")), 
@@ -755,7 +780,7 @@ p2 <- Heatmap(corr_mat, col=mycol,
 ###
 figfn <- paste(outdir, "FigS2_8_LFC.peak_corr.heatmap.png", sep="")
 ## ggsave(figfn, plot=p2, device="png", width=680, height=700, units="px", dpi=300) ## ggsave 
-png(figfn, width=580, height=700,res=120)
+png(figfn, width=700, height=780,res=120)
 p2 <- draw(p2)
 dev.off()
 
@@ -828,7 +853,7 @@ p1 <- ggplot(DFcorr, aes(x=MCls, y=rr, fill=MCls))+
    ##geom_violin()+ 
    geom_boxplot(outlier.shape=NA, lwd=0.25)+
    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.2)+     
+   geom_jitter(width=0.2, size=0.4)+     
    scale_fill_manual(values=col1)+
    ylab("SCC (DARs)")+ylim(-0.1,0.8)+
    theme_bw()+
@@ -895,7 +920,7 @@ p3 <- ggplot(DFcorr3, aes(x=comb, y=as.numeric(rr)))+ ##, fill=factor(MCls), gro
          axis.text.x=element_text(angle=45, hjust=1, size=7.5),
          axis.text.y=element_text(size=12))                         
   
-figfn <- paste(outdir, "Figure2.3_pairtreats.box.png", sep="")
+figfn <- paste(outdir, "Figure2.2_corr_pairtreats.box.png", sep="")
 ggsave(figfn, p3,  width=480, height=350, units="px", dpi=120)
 
 
@@ -942,7 +967,7 @@ p4 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
    ##geom_violin()+ 
    geom_boxplot(outlier.shape=NA, lwd=0.25)+
    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
-   geom_jitter(width=0.2, size=0.2)+ 
+   geom_jitter(width=0.2, size=0.4)+ 
    scale_fill_manual(values=col2)+
    ylab("SCC (DARs)")+ylim(0,0.8)+
    theme_bw()+
@@ -953,7 +978,7 @@ p4 <- ggplot(DFcorr2, aes(x=treats, y=rr, fill=treats))+
          axis.text.y=element_text(size=12),
          axis.ticks.x=element_blank())                         
 ###
-figfn <- paste(outdir, "Figure2.4_corr_treat.box.png", sep="")
+figfn <- paste(outdir, "Figure2.2_corr_treat.box.png", sep="")
 ggsave(figfn, plot=p4, width=480, height=250, units="px", dpi=120) ## ggsave 
 
 
@@ -1030,12 +1055,15 @@ p <- ggplot(plotDF, aes(x=rr_ATAC, y=rr_RNA, color=MCls))+
    scale_color_manual(values=col1)+      
    xlab("pairs' SCC (DARs)")+xlim(0.1, 0.8)+ylab("pairs' SCC (DEGs)")+ylim(0.1, 0.8)+
    theme_bw()+
-   theme(legend.position="none",
+   theme(legend.title=element_blank(),
+         legend.key=element_blank(),
+         legend.key.size=grid::unit(0.4, "cm"),
+         legend.text=element_text(size=10),
          axis.title=element_text(size=12),
          axis.text=element_text(size=12))
 ##
-figfn <- paste(outdir, "Figure2.5_compare.scatter.png", sep="")
-ggsave(figfn, p, width=320, height=270, units="px", dpi=120)
+figfn <- paste(outdir, "FigS2_9_compare.scatter.png", sep="")
+ggsave(figfn, p, width=580, height=400, units="px", dpi=120)
           
 
 
