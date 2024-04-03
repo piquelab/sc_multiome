@@ -46,3 +46,5 @@
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
+- Regulation of type I interferon responses, https://www.nature.com/articles/nri3581
+- Type I interferons in infectious disease, https://www.nature.com/articles/nri3787
