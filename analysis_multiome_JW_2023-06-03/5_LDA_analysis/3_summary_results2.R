@@ -214,6 +214,206 @@ for (ii in comb){
 
 
 
+
+#############################################
+### Heatmap visulizing dynamic changes 
+##############################################
+
+rm(list=ls())
+
+outdir <- "./3_summary.outs/1_rna_results/3.2_dynamic.outs/"
+
+
+
+### colors
+coltreat <- c("caffeine"="red", "nicotine"="tan", "vitA"="tan4",
+       "vitD"="seagreen4", "vitE"="salmon3", "zinc"="maroon3", "control"="grey")
+
+
+
+####
+### Differential results
+#### DEGs
+fn <- "../sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
+res <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
+## resDG2 <- resDG%>%filter(abs(estimate)>0.5, p.adjusted<0.1)
+###
+### select gene
+gene0 <- unique(res$gene)
+gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
+gene2 <- intersect(gene0, gene1)
+
+res <- res%>%filter(gene%in%gene2)
+
+
+MCls <- sort(unique(res$MCls))
+## comb <- sort(unique(res$comb))
+for (oneMCl in MCls){
+
+    
+###
+### correlation 
+fn <- paste("./3_summary.outs/1_rna_results/3_", oneMCl,  ".rr.xlsx", sep="")
+rr_df <- read.xlsx(fn)
+
+
+comb <- sort(names(rr_df)[1:6])
+    
+###
+### 0_CD4Naive_zinc
+
+for (ii in comb[c(1,2,6)]){
+
+   
+   ###
+   ii0 <- gsub("^rr_", "", ii)
+   treat0 <- gsub(".*_", "", ii)
+    
+   geneSel <- res%>%filter(comb==ii0, abs(estimate)>0.5, p.adjusted<0.1)%>%pull(gene)
+   rr2 <- rr_df%>%filter(gene%in%geneSel)%>%dplyr::select(gene, ii)
+   names(rr2)[2] <- "rr"
+     
+   
+   geneSel2 <- rr2%>%filter(abs(rr)>0.35)%>%pull(gene)
+   nsel <- length(geneSel2)
+    
+   cat(ii0, nsel, "\n") 
+
+   if ( nsel<2) next
+
+     
+   ###
+   ### plot data
+
+   fn <- paste(outdir, "1_", ii0, "_sliding.win.rds", sep="")
+   mat_ls <- read_rds(fn)
+   mat1 <- mat_ls$mat1
+   mat1 <- mat1[geneSel2,]
+   ## 
+   mat0 <- mat_ls$mat0
+   mat0 <- mat0[geneSel2,]
+    
+   m2 <- cbind(mat1, mat0)
+
+   ##
+   min2 <- apply(m2, 1, min)
+   max2 <- apply(m2, 1, max)
+   diff <- max2-min2 
+
+   mat1 <- sweep(mat1, 1, min2, "-")
+   mat1 <- sweep(mat1, 1, diff, "/")
+
+   ## xmin <- apply(mat1, 1, min) 
+   ## xmax <- apply(mat1, 1, max)
+   ## diff2 <- xmax-xmin
+    
+    
+  
+   #####################
+   ### Heatmap 
+   #####################
+
+    
+   ### 
+   val <- as.vector(mat1)
+   q0 <- quantile(val, probs=c(0.025, 0.975))
+   break0 <- c(0, seq(q0[1], q0[2], length.out=98), 1) 
+   ###setting colors
+   colset0 <- colorRampPalette(rev(brewer.pal(11, "Spectral")))(100) 
+   col_fun <-  colorRamp2(break0, colset0)
+
+   ###
+   ### column annotation
+   z <- mat_ls$lda1
+   z2 <- (z-min(z))/(max(z)-min(z))
+   q0 <- quantile(z2, probs=0.5)
+   break2 <- c(seq(0, q0, length.out=50), seq(q0+0.01, 1, length.out=50))
+   ### setting colors
+   colset2 <- colorRampPalette(c("white", coltreat[[treat0]]))(100)  
+   col2 <- colorRamp2(break2, colset2)
+
+   col_ha <- HeatmapAnnotation(pseudotime=z2, col=list(pseudotime=col2),
+      show_legend=FALSE, simple_anno_size=unit(0.4, "cm"), show_annotation_name=F)
+      
+      ## annotation_legend_param=list(LFC=list(grid_width=unit(0.3,"cm"),
+      ## labels_gp=gpar(fontsize=8),
+      ## title_gp=gpar(fontsize=12),
+      ## title=paste("pseudotime-",treat0, sep=""))),
+      ## annotation_name_gp=gpar(fontsize=10),                         
+      ## simple_anno_size=unit(0.3,"cm") )
+
+ 
+   ###   
+   ### row annotation 
+   # <- colorRampPalette(rev(brewer.pal(n=7, name="RdBu")))(100)
+   res0 <- res%>%filter(comb==ii0, gene%in%geneSel2)%>%select(gene, estimate) 
+   b <- res0$estimate
+   names(b) <- res0$gene
+   b <- b[rownames(mat1)]     
+   ## th0 <- as.numeric(quantile(abs(b),probs=0.99)) 
+   ## b2 <- b[abs(b)<th0] ### quantile(abs(b),probs=0.99)
+   ## breaks <- c(min(b),quantile(b2,probs=seq(0,1,length.out=98)),max(b))
+   bmax <- max(abs(b)) 
+   breaks <- seq(-bmax, bmax, length.out=10) 
+   col3 <- colorRamp2(breaks,
+      colorRampPalette(rev(brewer.pal(n=7, name="RdBu")))(10) ) 
+   row_ha <- rowAnnotation(LFC=b, col=list(LFC=col3),
+      annotation_legend_param=list(LFC=list(grid_width=unit(0.3,"cm"), legend_height=unit(3, "cm"),
+      labels_gp=gpar(fontsize=8),
+      title_gp=gpar(fontsize=10), title="LFC", title_position="leftcenter-rot")),    
+      width=unit(0.4,"cm"),
+      annotation_name_gp=gpar(fontsize=9), annotation_name_rot=30) 
+
+    fsize <- case_when(nsel>=60~4,
+                       nsel>=45&nsel<60~5,
+                       nsel>=20&nsel<45~6,
+                       TRUE~7)
+    ###
+    p1 <- Heatmap(mat1, col=col_fun,
+       cluster_rows=TRUE, cluster_columns=FALSE,
+       show_row_dend=T, row_dend_width=grid::unit(1.5, "cm"),
+       show_row_names=nsel<100, row_names_gp=gpar(fontsize=fsize),
+       show_column_names=FALSE,
+       ###
+       column_title=paste("pseudotime-", treat0, sep=""),
+       column_title_gp=gpar(fontsize=9),
+       top_annotation=col_ha,
+       right_annotation=row_ha,
+       heatmap_legend_param=list(title="Expression",
+          title_gp=gpar(fontsize=10),
+          title_position="leftcenter-rot",
+          labels_gp=gpar(fontsize=8), at=seq(0, 1, by=0.25), 
+          grid_width=unit(0.3, "cm"),
+          legend_height=unit(4, "cm")),
+       use_raster=TRUE, raster_device="png")
+
+
+    ### output directory
+    height0 <- 580 ##ifelse(nsel>50, 620, 580)
+    figfn <- paste(outdir, "Figure_", ii0, ".heatmap.png", sep="")
+    png(figfn, height=height0, width=560, res=120)
+    set.seed(0)
+    p1 <- draw(p1)
+    ## r.list <- row_order(p1)
+    ## r.dend <- row_dend(p2) 
+    dev.off()
+
+    ###
+    ### genes 
+    ## cl <- row_order(p1)
+    ## summ <- data.frame(gene=rownames(mat1)[cl])%>%left_join(res0, by="gene")
+    ## opfn <- paste(outdir2, "1_", ii, "_genes.heatmap.xlsx", sep="")
+    ## write.xlsx(summ, opfn)
+    }
+}
+
+
+
+
+
+
+
+
 ############################
 ### Example genes
 #############################
@@ -259,7 +459,7 @@ treats <- sort(unique(res$contrast))
 
 ###
 ### DEGs in treatment across cell types 
-treat0 <- treats[6]
+treat0 <- treats[1]
 sigs <- res%>%filter(is_sig==1, gene%in%gene2, contrast==treat0)%>%pull(gene)%>%unique()
 
 res2 <- res%>%filter(gene%in%sigs, contrast==treat0)%>%dplyr::select(gene, MCls, is_sig, estimate)
@@ -285,6 +485,10 @@ dfcorr2 <- dfcorr2[,c(ii,7)]
 names(dfcorr2)[1] <- "rr"
 dfcorr2 <- dfcorr2%>%arrange(desc(rr))
 geneSel <- dfcorr2$gene
+
+
+geneSel <- df_gene$gene
+geneSel <- geneSel[grepl("IRF|ISG", geneSel)]
 
 ### caffeine
 ## geneSel <- c(geneSel[c(1:4, 8, 10:14, 20:23)], "CD55")  
@@ -340,7 +544,7 @@ for (i in 1:length(geneSel)){
            legend.background=element_blank(),           
            strip.text=element_text(size=12))
  
-figfn <- paste(outdir2, "Figure_", treat0, "_",  i,  "_", gene0, ".fitting.png", sep="")
+figfn <- paste(outdir2, "Figure_", treat0, "_",  i+15,  "_", gene0, ".fitting.png", sep="")
 ggsave(figfn, p, width=1200, height=620, units="px", dpi=120)
 
 }
