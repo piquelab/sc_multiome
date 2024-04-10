@@ -5,7 +5,8 @@
 - SCENIC+: single-cell multiomic inference of enhancers and gene regulatory networks, https://www.biorxiv.org/content/10.1101/2022.08.19.504505v1.full,
   https://www.nature.com/articles/s41592-023-01938-4
 - Single-cell multiome regression models identify functional and disease-associated enhancers and enable chromatin potential analysis,https://www.biorxiv.org/content/10.1101/2023.06.13.544851v1
-- Tissue-specific enhancer-gene maps from multimodal single-cell data identify causal disease alleles, https://www.medrxiv.org/content/10.1101/2022.10.27.22281574v2.full-text
+- Tissue-specific enhancer-gene maps from multimodal single-cell data identify causal disease alleles, https://www.nature.com/articles/s41588-024-01682-1
+  
 - Predicting regulators of epithelial cell state through regularized regression analysis of single cell multiomic sequencing， https://www.biorxiv.org/content/10.1101/2022.12.29.522232v1.full 
 - Integrating genetics with single-cell multiomic measurements across disease states identifies mechanisms of beta cell dysfunction in type 2 diabetes, https://www.nature.com/articles/s41588-023-01397-9
 - ArchR is a scalable software package for integrative single-cell chromatin accessibility analysis, https://www.nature.com/articles/s41588-021-00790-6
