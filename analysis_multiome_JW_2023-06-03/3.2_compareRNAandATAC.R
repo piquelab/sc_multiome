@@ -26,6 +26,7 @@ library(annotables)
 ###
 ### clean script, in the final we used union of DARs to calculate LFC of gene chromatin accessibility 
 
+### each dot represents peak-gene
 
 ###################################################
 ### generate LFC on genes and LFC on peak 
@@ -42,7 +43,12 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 #### DEGs
 fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
-resDG <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
+resDG <- read_rds(fn)%>%as.data.frame()
+
+resDG <- resDG%>%
+   mutate(comb=paste(MCls, contrast, sep="_"),
+          is_DEG=ifelse(p.adjusted<0.1&abs(estimate)>0.5, 1, 0),
+          is_DEG=ifelse(is.na(is_DEG), 0, is_DEG))
 
 gene0 <- unique(resDG$gene)
 gene1 <- grch38%>%dplyr::filter(chr%in%as.character(1:22))%>%pull(symbol)%>%unique()
@@ -57,6 +63,9 @@ DEG <- resDG%>%dplyr::filter(p.adjusted<0.1, abs(estimate)>0.5, gene%in%gene2)%>
 fn <- "./sc_multiome_data/2_Differential/1.2_DiffPeak.outs/2.0_DESeq.results_0.1_cn_sampleID+new_treat.rds"
 resDP <- read_rds(fn)%>%as.data.frame()%>%mutate(comb=paste(MCls, contrast, sep="_"))
 resDP <- resDP%>%dplyr::rename("peak"="gene")
+resDP <- resDP%>%mutate(is_DAR=ifelse(p.adjusted<0.1&abs(estimate)>0.5, 1, 0),
+                        is_DAR=ifelse(is.na(is_DAR), 0, is_DAR))
+
 DP <- resDP%>%dplyr::filter(p.adjusted<0.1, abs(estimate)>0.5)%>%pull(peak)%>%unique()
 
 ###
@@ -64,37 +73,33 @@ fn <- "./sc_multiome_data/2_Differential/2.2_compareRNAandATAC.outs/1_annot.sign
 peakAnno <- read_rds(fn)
 peakAnno <- peakAnno%>%dplyr::select(peak=query_region, gene_id=gene_name, dtss=distance)%>%
     mutate(peak=gsub(":", "-", peak), dtss=abs(dtss))
-
+ 
  
 
 ###
-### calcualte median value of LFC of DP ###
+### data frame, LFC/zscore on peak and genes
 comb <- sort(unique(resDP$comb))
 dfcomb <- map_dfr(comb, function(ii){
    ### 
-   x <- resDP%>%filter(comb==ii)%>%dplyr::select(estimate, peak)
+   x <- resDP%>%filter(comb==ii)%>%
+       dplyr::select(comb, MCls, contrast, peak, LFC_ATAC=estimate, zscore_ATAC=statistic, is_DAR)
    x2 <- x%>%left_join(peakAnno, by="peak")
-   x2 <- x2 %>%filter(dtss<1e+05, peak%in%DP) ## 100 kb
+   x2 <- x2 %>%filter(dtss<1e+05, peak%in%DP, gene_id%in%gene2) ## 100 kb
+   ###    
    ###
-   x3 <- x2%>%group_by(gene_id)%>%summarize(LFC_ATAC=median(estimate, na.rm=T),.groups="drop")
-   x3 <- x3%>%filter(gene_id%in%DEG) 
-   ###
+   resDG2 <- resDG%>%dplyr::filter(comb==ii, gene%in%gene2)%>%
+       dplyr::select(gene, LFC_gene=estimate, zscore_gene=statistic, is_DEG)
     
-   df2 <- resDG%>%dplyr::filter(comb==ii, gene%in%DEG)%>%
-       dplyr::select(comb, MCls, contrast, gene, LFC_gene=estimate)%>%
-       inner_join(x3, by=c("gene"="gene_id"))
-   ###
+   df2 <- x2%>%inner_join(resDG2, by=c("gene_id"="gene"))%>%drop_na(LFC_ATAC, LFC_gene)
    cat(ii, nrow(df2), "\n") 
    df2
 })
 
 
-opfn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
+opfn <- paste(outdir, "1.2_gene_ATAC.comb.rds", sep="")
 write_rds(dfcomb, file=opfn)
 
 
-###
-###
 
 ## fn <- "./3_compare_plots.outs/1.2_LFC_gene_ATAC_comb.rds"
 ## dfcomb <- read_rds(fn)
@@ -107,6 +112,9 @@ write_rds(dfcomb, file=opfn)
 ### Box plots of correlation between LFC on gene expression and peaks ###
 #########################################################################
 
+###
+### Figure 3A
+
 rm(list=ls())
 outdir <- "./Plots_pub/3_compare_plots.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
@@ -116,13 +124,13 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 ####
 #### box plot show correlation
 
-fn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
+fn <- paste(outdir, "1.2_gene_ATAC.comb.rds", sep="")
 df <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
 
 dfcorr <- df%>%group_by(MCls, contrast)%>%
-    summarize(rr=cor(LFC_gene, LFC_ATAC, method="spearman"), .groups="drop")%>%as.data.frame()
+    summarize(rr=cor(zscore_gene, zscore_ATAC, method="spearman"), .groups="drop")%>%as.data.frame()
 
-rmat <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
+rmat2 <- dfcorr%>%pivot_wider(id_cols=MCls, names_from=contrast, values_from=rr)%>%as.data.frame()
 
 
 ###
@@ -143,7 +151,7 @@ p1 <- ggplot(dfcorr, aes(x=MCls, y=rr, fill=MCls))+
    geom_jitter(width=0.2, size=0.5)+     
    scale_fill_manual(values=col1)+
    ## ggtitle("Between gene expression and chromatin")+ 
-   ylab("SCC")+ylim(-0.1, 0.4)+
+   ylab("SCC")+ylim(-0.1, 0.3)+
    theme_bw()+
    theme(legend.position="none",
          axis.title.x=element_blank(),
@@ -164,7 +172,7 @@ p2 <- ggplot(dfcorr, aes(x=contrast, y=rr, fill=contrast))+
    stat_summary(fun=median, color="grey", geom="point", shape=23, size=2.5, stroke=0.9)+
    geom_jitter(width=0.2, size=0.5)+     
    scale_fill_manual(values=col2)+   ##ylim(-0.1, 0.5)+
-   ylab("SCC")+ylim(-0.1, 0.4)+
+   ylab("SCC")+ylim(-0.1, 0.3)+
    theme_bw()+
    theme(legend.position="none",
          axis.title.x=element_blank(),
@@ -176,9 +184,9 @@ p2 <- ggplot(dfcorr, aes(x=contrast, y=rr, fill=contrast))+
          ## axis.title.y=element_text(size=9),
          ## axis.text.x=element_text(angle=30, hjust=1, size=8),
          ## axis.text.y=element_text(size=9))
-
+ 
 comb_plots <- plot_grid(p1, p2, nrow=2, align="v") ##, rel_heights=c(1, 0.9))
-figfn <- paste(outdir, "Figure1.2_corr_gene_ATAC_box.png", sep="")
+figfn <- paste(outdir, "Figure3A_corr_gene_ATAC_zscore.box.png", sep="")
 ggsave(figfn, comb_plots, device="png", width=340, height=580, units="px", dpi=120)
 
 
@@ -189,6 +197,9 @@ ggsave(figfn, comb_plots, device="png", width=340, height=580, units="px", dpi=1
 ### Scatter plots of LFC on gene expression and chromatin accessibility ###
 ###########################################################################
 
+###
+### Figure 3B
+
 
 rm(list=ls())
 outdir <- "./Plots_pub/3_compare_plots.outs/"
@@ -196,37 +207,42 @@ if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
 
 ###
-### plot data
-
-fn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
-df0 <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
+### input data  
+fn <- paste(outdir, "1.2_gene_ATAC.comb.rds", sep="")
+df0 <- read_rds(fn)
 
 
 ###
-### First example
+### First example and data frame for plots  
 ii <- "6_Monocyte_vitD"
 df2 <- df0%>%dplyr::filter(comb==ii)
 
 
-###
-### if it is DEG or not 
-fn <- "./sc_multiome_data/2_Differential/1_DiffRNA_2.outs/2.0_DESeq.results_clusters_treat&ind_filtered_0.1_cn_sampleID+new_treat.rds"
-resDG <- read_rds(fn)%>%as.data.frame()%>%
-    mutate(comb=paste(MCls, contrast, sep="_"),
-           is_sig=ifelse(p.adjusted<0.1&abs(estimate)>0.5, 1, 0),
-           is_sig=ifelse(is.na(is_sig), 0, is_sig))
+plotDF <- df2%>%dplyr::rename(x_peak=zscore_ATAC, y_gene=zscore_gene)
+plotDF <- plotDF%>%mutate(sig_gr=case_when(is_DAR==1&is_DEG==0~"sig1",
+                                           is_DAR==0&is_DEG==1~"sig2",
+                                           is_DAR==1&is_DEG==1~"sig3",
+                                           TRUE~"sig0"))
+##
+## decide threshold value  
+x <- plotDF$x_peak
+quantile(abs(x), probs=c(0.99, 0.995, 0.998, 0.999))
+range(x)
 
+y <- plotDF$y_gene
+quantile(abs(y), probs=c(0.99, 0.995, 0.998, 0.999))
+range(y)
 
+th0 <- 15
 
-resDG2 <- resDG%>%filter(comb==ii)%>%dplyr::select(gene, is_sig)
-
-### combine plot data with 
-df2 <- df2%>%left_join(resDG2, by="gene")
-
+plotDF <- plotDF%>%mutate(x2_peak=ifelse(abs(x_peak)>th0, th0*sign(x_peak), x_peak),
+                    y2_gene=ifelse(abs(y_gene)>th0, th0*sign(y_gene), y_gene),
+                    gr=ifelse(abs(x_peak)>th0|abs(y_gene)>th0, "gr2", "gr1")
+                    )
 
 ###
 ### add annotation text
-corr <- cor.test(df2$LFC_ATAC, df2$LFC_gene, method="spearman")
+corr <- cor.test(plotDF$x_peak, plotDF$y_gene, method="spearman")
 rr <- round(as.numeric(corr$estimate), digits=3)
 pval <- corr$p.value
 
@@ -236,33 +252,154 @@ symb <- case_when(pval<=1e-03~"***",
           TRUE~"NS")
 eq <- deparse(bquote(italic(rho)==.(rr)~.(symb)))
 
+## x0 <- -5
+## y0 <- 10
 
-### modification 
-df3 <- df2%>%mutate(LFC_ATAC2=ifelse(abs(LFC_ATAC)>5, 5*sign(LFC_ATAC), LFC_ATAC),
-                    LFC_gene2=ifelse(abs(LFC_gene)>5, 5*sign(LFC_ATAC), LFC_gene),
-                    gr=ifelse(abs(LFC_ATAC)>5|abs(LFC_gene)>5, "gr2", "gr1")
-                    )%>%as.data.frame()
 
-y0 <- 5
-x0 <- -3.7
-  
-p0 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
-   geom_point(aes(color=factor(is_sig),
+
+###
+### annotate genes 
+## anno2 <- plotDF%>%
+##     filter(x_peak>3, is_DEG>0, grepl("^MT", gene_id), grepl("chr16", peak))%>%
+##     group_by(gene_id)%>%slice_max(x_peak,n=1)%>%
+##     as.data.frame()
+
+
+ 
+lim0 <- th0+1
+p0 <- ggplot(plotDF%>%arrange((sig_gr)), aes(x=x2_peak, y=y2_gene))+
+   geom_point(aes(color=factor(sig_gr), alpha=sig_gr,
                   size=factor(gr), shape=factor(gr))   )+
-   scale_color_manual(values=c("grey", "red"), labels=c("Not DEG", "DEG"),
-      guide=guide_legend(override.aes=list(size=1.5)))+
-   scale_size_manual(values=c("gr1"=0.8, "gr2"=1.5), guide="none")+
-   scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+ 
-   annotate("text", label=eq, x=x0, y=y0, size=3.5, parse=T)+ 
-   scale_x_continuous("LFC on gene chromatin accessibility", limits=c(-6,6))+
-   scale_y_continuous("LFC on gene expression", limits=c(-6,6))+
-   geom_vline(xintercept=0, linetype="dashed", size=0.4)+
-   geom_hline(yintercept=0, linetype="dashed", size=0.4)+ 
+   scale_color_manual(values=c("sig0"="grey", "sig1"="red", "sig2"="blue", "sig3"="green"),
+                      labels=c("sig0"="Not", "sig1"="DAR(only)", "sig2"="DEG(only)", "sig3"="Both"),
+      guide=guide_legend(override.aes=list(size=1.2, position="inside")))+
+   scale_size_manual(values=c("gr1"=0.8, "gr2"=2), guide="none")+
+   scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+
+   scale_alpha_manual(values=c("sig0"=0.6, "sig1"=1, "sig2"=1, "sig3"=1), guide="none")+ 
+   annotate("text", label=eq, x=-7.8, y=15, size=3, parse=T)+
+   ## geom_text_repel(data=anno2,
+   ##     aes(x=x2_peak, y=y2_gene, label=gene_id),
+   ##     max.overlaps=30, box.padding=0.3,
+   ##     point.padding=0.1, nudge_x=0.01, nudge_y=0.01,
+   ##     min.segment.length=0, segment.curvature=-1e-20, segment.size=unit(0.3, "mm"),
+   ##     arrow=arrow(length=unit(0.015, "npc")),
+   ##     color="maroon3", fontface="italic", size=2.8)+    
+   scale_x_continuous(bquote(italic(Z)~"–score (chromatin accessibility)"),
+                      breaks=seq(-10, 15, by=5), limits=c(-12, 16))+
+   scale_y_continuous(bquote(italic(Z)~"–score (gene expression)"),
+                      breaks=seq(-10, 15, by=5), limits=c(-12, 16))+
+   geom_vline(xintercept=0, linetype="dashed", linewidth=0.4)+
+   geom_hline(yintercept=0, linetype="dashed", linewidth=0.4)+ 
    ## geom_smooth(method="lm", formula=y~x, size=0.5, se=F)+ 
    ggtitle("vitamin D in Monocyte")+
    theme_bw()+ 
-   theme(legend.position=c(0.2, 0.75),
+   theme(## legend.position=c(0.2, 0.75),
          legend.title=element_blank(),
+         legend.position=c(0.82, 0.18),
+         legend.text=element_text(size=8),
+         legend.key.size=unit(0.25, "cm"),
+         legend.background=element_blank(),
+         legend.key=element_blank(),
+         legend.box.background=element_blank(),
+         axis.title=element_text(size=10),
+         axis.text=element_text(size=10),
+         plot.title=element_text(hjust=0.5, size=12))        
+  
+figfn <- paste(outdir, "Figure3B_", ii, "_scatter_zscore.png", sep="")
+ggsave(figfn, p0, device="png", width=380, height=350, units="px", dpi=120)
+
+
+
+
+
+
+
+######################
+### second example 
+######################
+
+ii <- "6_Monocyte_zinc"
+df2 <- df0%>%dplyr::filter(comb==ii)
+
+plotDF <- df2%>%dplyr::rename(x_peak=zscore_ATAC, y_gene=zscore_gene)
+plotDF <- plotDF%>%mutate(sig_gr=case_when(is_DAR==1&is_DEG==0~"sig1",
+                                           is_DAR==0&is_DEG==1~"sig2",
+                                           is_DAR==1&is_DEG==1~"sig3",
+                                           TRUE~"sig0"))
+##
+## decide threshold value  
+x <- plotDF$x_peak
+quantile(abs(x), probs=c(0.99, 0.995, 0.998, 0.999))
+range(x)
+
+y <- plotDF$y_gene
+quantile(abs(y), probs=c(0.99, 0.995, 0.998, 0.999))
+range(y)
+
+th0 <- 15
+
+plotDF <- plotDF%>%mutate(x2_peak=ifelse(abs(x_peak)>th0, th0*sign(x_peak), x_peak),
+                    y2_gene=ifelse(abs(y_gene)>th0, th0*sign(y_gene), y_gene),
+                    gr=ifelse(abs(x_peak)>th0|abs(y_gene)>th0, "gr2", "gr1")
+                    )
+
+###
+### add annotation text
+corr <- cor.test(plotDF$x_peak, plotDF$y_gene, method="spearman")
+rr <- round(as.numeric(corr$estimate), digits=3)
+pval <- corr$p.value
+
+symb <- case_when(pval<=1e-03~"***",
+          pval>1e-03&pval<=0.01~"**",
+          pval>1e-01&pval<=0.05~"*",
+          TRUE~"NS")
+eq <- deparse(bquote(italic(rho)==.(rr)~.(symb)))
+
+## x0 <- -8
+## y0 <- 10
+
+
+
+###
+### annotate genes 
+anno2 <- plotDF%>%
+    filter(x_peak>3, is_DEG>0, grepl("^MT", gene_id), grepl("chr16", peak))%>%
+    group_by(gene_id)%>%slice_max(x_peak,n=1)%>%
+    as.data.frame()
+
+ 
+ 
+lim0 <- th0+1
+p0 <- ggplot(plotDF%>%arrange((sig_gr)), aes(x=x2_peak, y=y2_gene))+
+   geom_point(aes(color=factor(sig_gr), alpha=sig_gr,
+                  size=factor(gr), shape=factor(gr))   )+
+   scale_color_manual(values=c("sig0"="grey", "sig1"="red", "sig2"="blue", "sig3"="green"),
+                      labels=c("sig0"="Not", "sig1"="DAR(only)", "sig2"="DEG(only)", "sig3"="Both"),
+      guide=guide_legend(override.aes=list(size=1.5)))+
+   scale_size_manual(values=c("gr1"=0.8, "gr2"=2), guide="none")+
+   scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+
+   scale_alpha_manual(values=c("sig0"=0.6, "sig1"=1, "sig2"=1, "sig3"=1), guide="none")+ 
+   annotate("text", label=eq, x=-7.8, y=15, size=3, parse=T)+
+   geom_text_repel(data=anno2,
+       aes(x=x2_peak, y=y2_gene, label=gene_id),
+       max.overlaps=30, box.padding=0.2,
+       point.padding=0.2, nudge_x=-4, nudge_y=0.1,
+       min.segment.length=0, segment.curvature=-1e-20, segment.size=unit(0.2, "mm"),
+       ##segment.angle=20,
+       arrow=arrow(length=unit(0.015, "npc")),
+       color="maroon3", fontface="italic", size=2.5)+  
+   scale_x_continuous(bquote(italic(Z)~"–score (chromatin accessibility)"),
+                      breaks=seq(-10, 15, by=5), limits=c(-12, 16))+
+   scale_y_continuous(bquote(italic(Z)~"–score (gene expression)"),
+                      breaks=seq(-10, 15, by=5), limits=c(-12, 16))+
+   geom_vline(xintercept=0, linetype="dashed", linewidth=0.4)+
+   geom_hline(yintercept=0, linetype="dashed", linewidth=0.4)+ 
+   ## geom_smooth(method="lm", formula=y~x, size=0.5, se=F)+ 
+   ggtitle("zinc in Monocyte")+
+   theme_bw()+ 
+   theme(## legend.position=c(0.2, 0.75),
+         legend.title=element_blank(),
+         legend.position="none", 
          legend.text=element_text(size=10),
          legend.key.size=unit(0.4, "cm"),
          legend.background=element_blank(),
@@ -271,96 +408,101 @@ p0 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
          axis.title=element_text(size=10),
          axis.text=element_text(size=10),
          plot.title=element_text(hjust=0.5, size=12))        
- 
-figfn <- paste(outdir, "Figure1.3_", ii, "_scatter_LFC.png", sep="")
+  
+figfn <- paste(outdir, "Figure3B_", ii, "_scatter_zscore.png", sep="")
 ggsave(figfn, p0, device="png", width=380, height=350, units="px", dpi=120)
- 
-
-###
-### another example
-
-###
-### plot data, combine the information about if it is DEG or not
-
-ii <- "6_Monocyte_zinc"
-df2 <- df0%>%dplyr::filter(comb==ii)
-resDG2 <- resDG%>%filter(comb==ii)%>%dplyr::select(gene, is_sig)
-
-df2 <- df2%>%left_join(resDG2, by="gene")
-
-
-## df3 <- df3%>%mutate(gr2=ifelse(grepl("^MT", gene), 1, 0))
-
-###
-### add annotation text
-corr <- cor.test(df2$LFC_ATAC, df2$LFC_gene, method="spearman")
-rr <- round(as.numeric(corr$estimate), digits=3)
-pval <- corr$p.value
-
-symb <- case_when(pval<=1e-03~"***",
-          pval>1e-03&pval<=0.01~"**",
-          pval>1e-01&pval<=0.05~"*",
-          TRUE~"NS")
-eq <- deparse(bquote(italic(rho)==.(rr)~.(symb)))
-
-y0 <- 4.5
-x0 <- -4
 
  
-### modification plot data
-df3 <- df2%>%mutate(LFC_ATAC2=ifelse(abs(LFC_ATAC)>5, 5*sign(LFC_ATAC), LFC_ATAC),
-                    LFC_gene2=ifelse(abs(LFC_gene)>5, 5*sign(LFC_ATAC), LFC_gene),
-                    gr=ifelse(abs(LFC_ATAC)>5|abs(LFC_gene)>5, "gr2", "gr1")
-                    )%>%as.data.frame()
 
 
-###
-### annotate genes 
-anno2 <- df3%>%filter(LFC_gene>4, is_sig>0, grepl("^MT", gene))
+ 
+ 
+## ###
+## ### another example
 
-###
-### main figures
-p1 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
-   geom_point(aes(color=factor(is_sig),
-                  size=factor(gr), shape=factor(gr))   )+
-   scale_color_manual(values=c("grey", "red"), labels=c("Not DEG", "DEG"),
-      guide=guide_legend(override.aes=list(size=1.5)))+
-   scale_size_manual(values=c("gr1"=0.8, "gr2"=1.5), guide="none")+
-   scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+        
-   annotate("text", label=eq, x=x0, y=y0, size=3.5, parse=T)+
-   geom_text_repel(data=anno2,
-       aes(x=LFC_ATAC2, y=LFC_gene2, label=gene),
-       max.overlaps=30, box.padding=0.3,
-       point.padding=0.1, nudge_x=0.01, nudge_y=0.01,
-       min.segment.length=0, segment.curvature=-1e-20, segment.size=unit(0.3, "mm"),
-       arrow=arrow(length=unit(0.015, "npc")),
-       color="maroon3", fontface="italic", size=2.8)+ 
-   scale_x_continuous("LFC on gene chromatin accessibility", limits=c(-6, 6))+
-   scale_y_continuous("LFC on gene expression", limits=c(-6,6))+
-   geom_vline(xintercept=0, linetype="dashed", size=0.4)+
-   geom_hline(yintercept=0, linetype="dashed", size=0.4)+ 
-   ## geom_smooth(method="lm", formula=y~x, size=0.5, se=F)+ 
-   ggtitle("zinc in Monocyte")+
-   theme_bw()+ 
-   theme(legend.position="none",
-         legend.title=element_blank(),
-         legend.text=element_text(size=8),
-         legend.key.size=unit(0.4, "cm"),
-         legend.background=element_blank(),
-         legend.key=element_blank(),
-         legend.box.background=element_blank(),
-         axis.title=element_text(size=10),
-         axis.text=element_text(size=10),
-         plot.title=element_text(hjust=0.5, size=12))        
+## ###
+## ### plot data, combine the information about if it is DEG or not
 
-figfn <- paste(outdir, "Figure1.3_", ii, "_scatter_LFC.png", sep="")
-ggsave(figfn, p1, device="png", width=380, height=350, units="px", dpi=120)
+## ii <- "6_Monocyte_zinc"
+## df2 <- df0%>%dplyr::filter(comb==ii)
+## resDG2 <- resDG%>%filter(comb==ii)%>%dplyr::select(gene, is_sig)
+
+## df2 <- df2%>%left_join(resDG2, by="gene")
 
 
+## ## df3 <- df3%>%mutate(gr2=ifelse(grepl("^MT", gene), 1, 0))
+
+## ###
+## ### add annotation text
+## corr <- cor.test(df2$LFC_ATAC, df2$LFC_gene, method="spearman")
+## rr <- round(as.numeric(corr$estimate), digits=3)
+## pval <- corr$p.value
+
+## symb <- case_when(pval<=1e-03~"***",
+##           pval>1e-03&pval<=0.01~"**",
+##           pval>1e-01&pval<=0.05~"*",
+##           TRUE~"NS")
+## eq <- deparse(bquote(italic(rho)==.(rr)~.(symb)))
+
+## y0 <- 4.5
+## x0 <- -4
+
+ 
+## ### modification plot data
+## df3 <- df2%>%mutate(LFC_ATAC2=ifelse(abs(LFC_ATAC)>5, 5*sign(LFC_ATAC), LFC_ATAC),
+##                     LFC_gene2=ifelse(abs(LFC_gene)>5, 5*sign(LFC_ATAC), LFC_gene),
+##                     gr=ifelse(abs(LFC_ATAC)>5|abs(LFC_gene)>5, "gr2", "gr1")
+##                     )%>%as.data.frame()
+
+
+## ###
+## ### annotate genes 
+## anno2 <- df3%>%filter(LFC_gene>4, is_sig>0, grepl("^MT", gene))
+
+## ###
+## ### main figures
+## p1 <- ggplot(df3, aes(x=LFC_ATAC2, y=LFC_gene2))+
+##    geom_point(aes(color=factor(is_sig),
+##                   size=factor(gr), shape=factor(gr))   )+
+##    scale_color_manual(values=c("grey", "red"), labels=c("Not DEG", "DEG"),
+##       guide=guide_legend(override.aes=list(size=1.5)))+
+##    scale_size_manual(values=c("gr1"=0.8, "gr2"=1.5), guide="none")+
+##    scale_shape_manual(values=c("gr1"=16, "gr2"=21), guide="none")+        
+##    annotate("text", label=eq, x=x0, y=y0, size=3.5, parse=T)+
+##    geom_text_repel(data=anno2,
+##        aes(x=LFC_ATAC2, y=LFC_gene2, label=gene),
+##        max.overlaps=30, box.padding=0.3,
+##        point.padding=0.1, nudge_x=0.01, nudge_y=0.01,
+##        min.segment.length=0, segment.curvature=-1e-20, segment.size=unit(0.3, "mm"),
+##        arrow=arrow(length=unit(0.015, "npc")),
+##        color="maroon3", fontface="italic", size=2.8)+ 
+##    scale_x_continuous("LFC on gene chromatin accessibility", limits=c(-6, 6))+
+##    scale_y_continuous("LFC on gene expression", limits=c(-6,6))+
+##    geom_vline(xintercept=0, linetype="dashed", size=0.4)+
+##    geom_hline(yintercept=0, linetype="dashed", size=0.4)+ 
+##    ## geom_smooth(method="lm", formula=y~x, size=0.5, se=F)+ 
+##    ggtitle("zinc in Monocyte")+
+##    theme_bw()+ 
+##    theme(legend.position="none",
+##          legend.title=element_blank(),
+##          legend.text=element_text(size=8),
+##          legend.key.size=unit(0.4, "cm"),
+##          legend.background=element_blank(),
+##          legend.key=element_blank(),
+##          legend.box.background=element_blank(),
+##          axis.title=element_text(size=10),
+##          axis.text=element_text(size=10),
+##          plot.title=element_text(hjust=0.5, size=12))        
+
+## figfn <- paste(outdir, "Figure1.3_", ii, "_scatter_LFC.png", sep="")
+## ggsave(figfn, p1, device="png", width=380, height=350, units="px", dpi=120)
 
 
 
 
+###############################
+### Figure 3C, Forest plot 
+################################
 
 ####################################################################
 #### Enrichment analysis to examine if DEGs are enriched in DARs ###
@@ -369,6 +511,11 @@ ggsave(figfn, p1, device="png", width=380, height=350, units="px", dpi=120)
 rm(list=ls()) 
 
 outdir <- "./Plots_pub/3_compare_plots.outs/"
+
+###
+## outdir2 <- "./Plots_pub/3_compare_plots.outs/Poster/"
+## if ( !file.exists(outdir2) ) dir.create(outdir2, showWarnings=F, recursive=T)
+
 
 
 ### DEG results
@@ -393,6 +540,11 @@ peakAnno <- peakAnno%>%dplyr::select(peak=query_region, gene_id=gene_name, dtss=
     mutate(peak=gsub(":", "-", peak), dtss=abs(dtss))
 
 
+resDP <- resDP%>%left_join(peakAnno, by="peak")%>%dplyr::filter(dtss<1e+5)
+ 
+
+###
+### test number peaks in DEGs 
 
 comb <- sort(unique(resDG$comb))
 cvt <- str_split(comb, "_", simplify=T)
@@ -403,35 +555,34 @@ for (i in 1:nrow(cvt)){
    ii <- cvt$comb[i]
    oneMCl <- cvt$MCls[i]
    contrast <- cvt$contrast[i]
-    
-   resDP2 <- resDP%>%
-       dplyr::filter(comb==ii, p.adjusted<0.1, abs(estimate)>0.5)%>%
-       left_join(peakAnno, by="peak")%>%dplyr::filter(dtss<1e+5)
-   geneDP <- unique(resDP2$gene_id)
 
-   cat(ii, "\n")
-    
-   if ( nrow(resDP2)>50){
-       ###
-       BG <- resDG%>%dplyr::filter(MCls==oneMCl)%>%pull(gene)%>%unique()
-       DEG <- resDG%>%dplyr::filter(comb==ii, p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()
+   ###
+   ###
+   DEG <- resDG%>%dplyr::filter(comb==ii, p.adjusted<0.1, abs(estimate)>0.5)%>%pull(gene)%>%unique()    
+   resDP2 <- resDP%>%dplyr::filter(comb==ii)%>%mutate(is_sig=p.adjusted<0.1&abs(estimate)>0.5)
 
+   DP <- resDP2%>%dplyr::filter(is_sig)%>%pull(peak)%>%unique() 
+
+   cat(ii, length(DP), "\n")
+    
+   if ( length(DP)>50){
        ## contingency table
-       interest.in.DARs <- length(intersect(DEG, geneDP))
-       interest.not.DARs <- length(DEG)-interest.in.DARs
+       ##
+       interest.in <- resDP2%>%filter(is_sig, gene_id%in%DEG)%>%nrow()
+       interest.not <- resDP2%>%filter(is_sig, !gene_id%in%DEG)%>%nrow()
+       ###       
+       not.interest.in <- resDP2%>%filter(!is_sig, gene_id%in%DEG)%>%nrow()
+       not.interest.not <- resDP2%>%filter(!is_sig, !gene_id%in%DEG)%>%nrow()
+       
        ###
-       notDEG <- setdiff(BG, DEG)
-       not.interest.in.DARs <- length(intersect(notDEG, geneDP))
-       not.interest.not.DARs <- length(notDEG)-not.interest.in.DARs
-       ###
-       df2 <- data.frame("interest.in.DARs"=interest.in.DARs, "interest.not.DARs"=interest.not.DARs,
-           "not.interest.in.DARs"=not.interest.in.DARs, "not.interest.not.DARs"=not.interest.not.DARs,
+       df2 <- data.frame("interest.in"=interest.in, "interest.not"=interest.not,
+           "not.interest.in"=not.interest.in, "not.interest.not"=not.interest.not,
            comb=ii, MCls=oneMCl, "contrast"=contrast)
        dmat <- matrix(unlist(df2[1,1:4]), 2, 2)
 
        ### fisher exact test
        enrich <- fisher.test(dmat)
-       ##enrich2 <- fisher.test(dmat, alternative="greater")       
+       ## enrich2 <- fisher.test(dmat, alternative="greater")       
        df2 <- df2%>%mutate(odds=enrich$estimate, pval=enrich$p.value,
            lower=enrich$conf.int[1], upper=enrich$conf.int[2])
        
@@ -456,6 +607,8 @@ rm(list=ls())
 
 outdir <- "./Plots_pub/3_compare_plots.outs/"
 
+###
+## outdir2 <- "./Plots_pub/3_compare_plots.outs/Poster/"
 fn <- "./3_compare_plots.outs/2_enrich_Fisher.txt"
 DFcomb <- read.table(fn, header=T)
 plotDF <- DFcomb
@@ -478,7 +631,7 @@ plotDF <- plotDF%>%
 
 plotDF <- plotDF%>%drop_na(log_odds, log_lower, log_upper)
 
-ylab2 <- plotDF$contrast
+ylab2 <- gsub(".*_", "", plotDF$comb)
 names(ylab2) <- plotDF$comb
 
 p <- ggplot(plotDF, aes(x=log_odds, y=comb))+
@@ -486,7 +639,7 @@ p <- ggplot(plotDF, aes(x=log_odds, y=comb))+
        size=0.5, height=0.2)+
    geom_point(aes(colour=MCls), shape=19, size=1.5)+
    scale_colour_manual(values=col1)+
-   geom_vline(aes(xintercept=0), size=0.25, linetype="dashed")+ 
+   geom_vline(aes(xintercept=0), linewidth=0.25, linetype="dashed")+ 
    xlab("log odds ratio")+xlim(-3, 6)+
    scale_y_discrete(labels=ylab2)+ 
    theme_bw()+
@@ -499,9 +652,9 @@ p <- ggplot(plotDF, aes(x=log_odds, y=comb))+
          ## legend.title=element_blank(),
          ## legend.text=element_text(size=8),
          ## legend.key.size=unit(0.4, "cm"))
-         ##legend.position="none")
+         ## legend.position="none")
  
-figfn <- paste(outdir, "Figure2_enrich_forest.png", sep="")
+figfn <- paste(outdir, "Figure3C_enrich_forest.png", sep="")
 ggsave(figfn, p, device="png", width=380, height=580, units="px", dpi=120)
 
 
@@ -524,12 +677,15 @@ ggsave(figfn, p, device="png", width=380, height=580, units="px", dpi=120)
 
 rm(list=ls())
 
-outdir <- "./3_compare_plots.outs/"
+outdir <- "./Plots_pub/3_compare_plots.outs/"
 if ( !file.exists(outdir) ) dir.create(outdir, showWarnings=F, recursive=T)
 
+##
+outdir2 <- "./Plots_pub/3_compare_plots.outs/Poster/"
+if ( !file.exists(outdir2) ) dir.create(outdir2, showWarnings=F, recursive=T)
 
 
-fn <- paste(outdir, "1.2_LFC_gene_ATAC_comb.rds", sep="")
+fn <- paste(outdir, "1.2_LFC_gene_ATAC.comb.rds", sep="")
 df <- read_rds(fn)%>%drop_na(LFC_gene, LFC_ATAC) 
 
 dfcorr <- df%>%group_by(MCls, contrast)%>%
@@ -578,9 +734,9 @@ p <- Heatmap(mat2, name="SCC", na_col="grey90",
        grid.text(round(mat[i,j],digits=3), x, y, gp=gpar(fontsize=10))
     })
 
-figfn <- paste(outdir, "FigS3_1_corr_heatmap.png", sep="")
+figfn <- paste(outdir2, "FigS3_1_corr_heatmap.png", sep="")
 ###ggsave(figfn, p, width=520, height=520, units="px",dpi=120)
-png(figfn, height=520, width=520, res=120)
+png(figfn, height=580, width=520, res=120)
 print(p)
 dev.off()    
 
