@@ -4,9 +4,10 @@
 - Single-nucleus multi-omics of human stem cell-derived islets identifies deficiencies in lineage specification, https://www.nature.com/articles/s41556-023-01150-8
 - SCENIC+: single-cell multiomic inference of enhancers and gene regulatory networks, https://www.biorxiv.org/content/10.1101/2022.08.19.504505v1.full,
   https://www.nature.com/articles/s41592-023-01938-4
-- Single-cell multiome regression models identify functional and disease-associated enhancers and enable chromatin potential analysis,https://www.biorxiv.org/content/10.1101/2023.06.13.544851v1
-- Tissue-specific enhancer-gene maps from multimodal single-cell data identify causal disease alleles, https://www.medrxiv.org/content/10.1101/2022.10.27.22281574v2.full-text
-- Predicting regulators of epithelial cell state through regularized regression analysis of single cell multiomic sequencing， https://www.biorxiv.org/content/10.1101/2022.12.29.522232v1.full 
+- Single-cell multiome regression models identify functional and disease-associated enhancers and enable chromatin potential analysis,https://www.biorxiv.org/content/10.1101/2023.06.13.544851v1, https://www.nature.com/articles/s41588-024-01689-8
+- Tissue-specific enhancer-gene maps from multimodal single-cell data identify causal disease alleles, https://www.nature.com/articles/s41588-024-01682-1  
+- Predicting regulators of epithelial cell state through regularized regression analysis of single cell multiomic sequencing， https://www.biorxiv.org/content/10.1101/2022.12.29.522232v1.full
+- Inferring gene regulatory networks from single-cell multiome data using atlas-scale external data, https://www.nature.com/articles/s41587-024-02182-7
 - Integrating genetics with single-cell multiomic measurements across disease states identifies mechanisms of beta cell dysfunction in type 2 diabetes, https://www.nature.com/articles/s41588-023-01397-9
 - ArchR is a scalable software package for integrative single-cell chromatin accessibility analysis, https://www.nature.com/articles/s41588-021-00790-6
 - Single-cell RNA sequencing reveals distinct T cell populations in immune-related adverse events of checkpoint inhibitors, https://www.sciencedirect.com/science/article/pii/S2666379122004323?via%3Dihub
@@ -43,6 +44,9 @@
 - Smoking changes adaptive immunity with persistent effects, https://www.nature.com/articles/s41586-023-06968-8
 - Genetic regulation of cell-type specific chromatin accessibility shapes the etiology of brain diseases, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10120699/
 - maxATAC: Genome-scale transcription-factor binding prediction from ATAC-seq with deep neural networks, https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1010863#pcbi.1010863.ref017
+- Epigenetic variation impacts individual differences in the transcriptional response to influenza infection, https://www.nature.com/articles/s41588-024-01668-z
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
+- Regulation of type I interferon responses, https://www.nature.com/articles/nri3581
+- Type I interferons in infectious disease, https://www.nature.com/articles/nri3787
