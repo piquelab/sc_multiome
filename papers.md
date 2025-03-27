@@ -46,6 +46,7 @@
 - maxATAC: Genome-scale transcription-factor binding prediction from ATAC-seq with deep neural networks, https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1010863#pcbi.1010863.ref017
 - Epigenetic variation impacts individual differences in the transcriptional response to influenza infection, https://www.nature.com/articles/s41588-024-01668-z
 - Multiomic single-cell profiling identifies critical regulators of postnatal brain, https://www.nature.com/articles/s41588-025-02083-8
+- geneRNIB: a living benchmark for gene regulatory network inference, https://www.biorxiv.org/content/10.1101/2025.02.25.640181v1.full
 
 
 ### Example genes
