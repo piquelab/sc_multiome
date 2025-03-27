@@ -45,6 +45,8 @@
 - Genetic regulation of cell-type specific chromatin accessibility shapes the etiology of brain diseases, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10120699/
 - maxATAC: Genome-scale transcription-factor binding prediction from ATAC-seq with deep neural networks, https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1010863#pcbi.1010863.ref017
 - Epigenetic variation impacts individual differences in the transcriptional response to influenza infection, https://www.nature.com/articles/s41588-024-01668-z
+- Multiomic single-cell profiling identifies critical regulators of postnatal brain, https://www.nature.com/articles/s41588-025-02083-8
+
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
