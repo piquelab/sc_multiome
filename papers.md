@@ -47,7 +47,7 @@
 - Epigenetic variation impacts individual differences in the transcriptional response to influenza infection, https://www.nature.com/articles/s41588-024-01668-z
 - Multiomic single-cell profiling identifies critical regulators of postnatal brain, https://www.nature.com/articles/s41588-025-02083-8
 - geneRNIB: a living benchmark for gene regulatory network inference, https://www.biorxiv.org/content/10.1101/2025.02.25.640181v1.full
-
+- Vitamin D supplementation vs. placebo and incident type 2 diabetes in an ancillary study of the randomized Vitamin D and Omega-3 Trial, https://www.nature.com/articles/s41467-025-58721-6
 
 ### Example genes
 - Identification of genetic variants affecting vitamin D receptor binding and associations with autoimmune disease,  https://academic.oup.com/hmg/article/26/11/2164/3064529
